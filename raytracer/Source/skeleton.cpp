@@ -25,7 +25,7 @@ struct Intersection {
   int triangleIndex;
 };
 
-float focalLength = 75;
+float focalLength = 100;
 vec4 cameraPos(0.0, 0.0, -1.0, 1.0);
 std::vector<Triangle> triangles;
 
@@ -54,6 +54,7 @@ int main(int argc, char* argv[]) {
 
 bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection) {
   bool intersectionFound = false;
+  closestIntersection = Intersection();
   closestIntersection.distance = std::numeric_limits<float>::max();
 
   for(std::vector<Triangle>::size_type i = 0; i < triangles.size(); i++) {

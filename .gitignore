@@ -8,6 +8,9 @@
 # Unignore all dirs
 !*/
 
+# Unignore all dirs
+!Makefile
+
 ### Above combination will ignore all files without extension ###
 
 # Created by https://www.gitignore.io/api/c,macos,visualstudiocode

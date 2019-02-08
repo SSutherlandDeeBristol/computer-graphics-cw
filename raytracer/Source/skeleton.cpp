@@ -25,8 +25,8 @@ struct Intersection {
   int triangleIndex;
 };
 
-float focalLength = 1.0;
-vec4 cameraPos(0.0, 0.0, 0, 1.0);
+float focalLength = 75;
+vec4 cameraPos(0.0, 0.0, -1.0, 1.0);
 std::vector<Triangle> triangles;
 
 /* ----------------------------------------------------------------------------*/
@@ -54,6 +54,7 @@ int main(int argc, char* argv[]) {
 
 bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection) {
   bool intersectionFound = false;
+  closestIntersection.distance = std::numeric_limits<float>::max();
 
   for(std::vector<Triangle>::size_type i = 0; i < triangles.size(); i++) {
     vec4 v0 = triangles[i].v0;
@@ -72,14 +73,14 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
 
     if (u > 0 && v > 0 && (u+v) < 1 && t >= 0) {
       /* Intersection detected! */
-      vec4 position = vec4(t,u,v,1);
+      vec4 position = vec4(t, u, v, 1);
       float dist = distance(start, position);
 
       if (dist < closestIntersection.distance) {
+        intersectionFound = true;
         closestIntersection.position = position;
         closestIntersection.distance = dist;
         closestIntersection.triangleIndex = i;
-        intersectionFound = true;
       }
 
     }
@@ -96,7 +97,6 @@ void Draw(screen* screen) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
       vec4 d = vec4(x - SCREEN_WIDTH/2, y - SCREEN_HEIGHT/2, focalLength, 1);
       Intersection intersection;
-      intersection.distance = std::numeric_limits<float>::max();
       vec3 colour(0.0, 0.0, 0.0); // Initialise to black
 
       if (ClosestIntersection(cameraPos, d, triangles, intersection)) {

@@ -15,8 +15,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 256
+#define SCREEN_WIDTH 160
+#define SCREEN_HEIGHT 128
 #define FULLSCREEN_MODE false
 
 struct Intersection {
@@ -140,15 +140,19 @@ bool Update() {
 	    int key_code = e.key.keysym.sym;
 	    switch(key_code) {
 	      case SDLK_UP:
+                cameraPos.y -= 0.05;
           /* Move camera forward */
           break;
 	      case SDLK_DOWN:
+                cameraPos.y += 0.05;
           /* Move camera backwards */
           break;
 	      case SDLK_LEFT:
+                cameraPos.x -= 0.05;
           /* Move camera left */
           break;
 	      case SDLK_RIGHT:
+                cameraPos.x += 0.05;
           /* Move camera right */
           break;
 	      case SDLK_ESCAPE:
@@ -158,4 +162,8 @@ bool Update() {
     }
   }
   return true;
+}
+
+void updateRotation() {
+    
 }

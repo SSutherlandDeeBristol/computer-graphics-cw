@@ -16,8 +16,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 160
-#define SCREEN_HEIGHT 128
+#define SCREEN_WIDTH 600
+#define SCREEN_HEIGHT 600
 #define FULLSCREEN_MODE false
 
 struct Intersection {
@@ -89,7 +89,7 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
       
     float t = glm::determinant(A1) / detA;
       
-    if (t >= 0) {
+    if (t > 0) {
         mat3 A2(-vec3(dir), b, e2);
         mat3 A3(-vec3(dir), e1, b);
           
@@ -252,16 +252,29 @@ void updateRotation() {
 }
 
 vec3 DirectLight( const Intersection& i ) {
-	float r = distance(i.position,lightPos);
+	Triangle triangle = triangles[i.triangleIndex];
 	
-	float A = 4 * M_PI * pow(r,2);
+	float r = distance(i.position, lightPos);
 	
-	vec4 rHat = normalize(lightPos - i.position);
-	vec4 nHat = normalize(triangles[i.triangleIndex].normal);
+	float A = 4 * M_PI * pow(r, 2);
+	
+	vec4 lightDir = lightPos - i.position;
+	
+	vec4 rHat = normalize(lightDir);
+	vec4 nHat = normalize(triangle.normal);
 	
 	vec3 B = lightColor / A;
-	
 	vec3 D = B * max(dot(rHat,nHat), 0.0f);
+	vec3 C = D * triangle.color;
 	
-	return D;
+	Intersection intersection;
+	vec3 black = vec3(0.0, 0.0, 0.0); // Initialise to black
+	
+	if (ClosestIntersection(i.position, lightDir, triangles, intersection)) {
+		if (intersection.triangleIndex != i.triangleIndex && intersection.distance < r) {
+			C = black;
+		}
+	}
+	
+	return C;
 }

@@ -28,8 +28,13 @@ struct Intersection {
 
 float focalLength = SCREEN_WIDTH/2;
 vec4 cameraPos(0.0, 0.0, -2, 1.0);
+
+vec4 lightPos( 0, -0.5, -0.7, 1.0 );
+vec3 lightColor = 14.f * vec3( 1, 1, 1 );
+
 std::vector<Triangle> triangles;
 mat4 R;
+
 float yaw = 0;
 float pitch = 0;
 float camDx = 0, camDy = 0, camDz = 0;
@@ -43,6 +48,7 @@ void Draw(screen* screen);
 bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection);
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void updateRotation();
+vec3 DirectLight( const Intersection& i );
 
 int main(int argc, char* argv[]) {
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
@@ -121,7 +127,8 @@ void Draw(screen* screen) {
       vec3 colour(0.0, 0.0, 0.0); // Initialise to black
 
       if (ClosestIntersection(cameraPos, d, triangles, intersection)) {
-        colour = triangles[intersection.triangleIndex].color;
+				colour = DirectLight(intersection);
+        //colour = triangles[intersection.triangleIndex].color;
       }
 
       PutPixelSDL(screen, x, y, colour);
@@ -190,6 +197,24 @@ bool Update() {
 					camDz -= 5;
 					updateRotation();
 					break;
+				case SDLK_i:
+					lightPos.z += 0.5;
+					break;
+				case SDLK_k:
+					lightPos.z -= 0.5;
+					break;
+				case SDLK_j:
+					lightPos.x -= 0.5;
+					break;
+				case SDLK_l:
+					lightPos.x += 0.5;
+					break;
+				case SDLK_o:
+					lightPos.y -= 0.5;
+					break;
+				case SDLK_p:
+					lightPos.y += 0.5;
+					break;
 	      case SDLK_ESCAPE:
           /* Move camera quit */
           return false;
@@ -224,4 +249,19 @@ void updateRotation() {
 	vec4 translation = vec4(camDx, camDy, camDz, 1);
 
 	R[3] = translation;
+}
+
+vec3 DirectLight( const Intersection& i ) {
+	float r = distance(i.position,lightPos);
+	
+	float A = 4 * M_PI * pow(r,2);
+	
+	vec4 rHat = normalize(lightPos - i.position);
+	vec4 nHat = normalize(triangles[i.triangleIndex].normal);
+	
+	vec3 B = lightColor / A;
+	
+	vec3 D = B * max(dot(rHat,nHat), 0.0f);
+	
+	return D;
 }

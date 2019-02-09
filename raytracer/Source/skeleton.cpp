@@ -5,6 +5,7 @@
 #include "TestModel.h"
 #include <stdint.h>
 #include "limits"
+#include <math.h>
 
 using namespace std;
 using glm::vec3;
@@ -29,7 +30,10 @@ float focalLength = SCREEN_WIDTH/2;
 vec4 cameraPos(0.0, 0.0, -2, 1.0);
 std::vector<Triangle> triangles;
 mat4 R;
-float yaw;
+float yaw = 0;
+float pitch = 0;
+float camDx = 0, camDy = 0, camDz = 0;
+
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -37,6 +41,8 @@ float yaw;
 bool Update();
 void Draw(screen* screen);
 bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection);
+void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
+void updateRotation();
 
 int main(int argc, char* argv[]) {
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
@@ -50,6 +56,7 @@ int main(int argc, char* argv[]) {
   SDL_SaveImage(screen, "screenshot.bmp");
 
   KillSDL(screen);
+    
   return 0;
 }
 
@@ -108,7 +115,7 @@ void Draw(screen* screen) {
 
   for (int x = 0; x < SCREEN_WIDTH; x++) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
-      vec4 d = vec4(x - SCREEN_WIDTH/2, y - SCREEN_HEIGHT/2, focalLength, 1);
+      vec4 d = R * vec4(x - SCREEN_WIDTH/2, y - SCREEN_HEIGHT/2, focalLength, 1);
       Intersection intersection;
   
       vec3 colour(0.0, 0.0, 0.0); // Initialise to black
@@ -140,21 +147,49 @@ bool Update() {
 	    int key_code = e.key.keysym.sym;
 	    switch(key_code) {
 	      case SDLK_UP:
-                cameraPos.y -= 0.05;
-          /* Move camera forward */
-          break;
+					pitch -= M_PI / 18;
+					updateRotation();
+					/* Move camera forward */
+					break;
 	      case SDLK_DOWN:
-                cameraPos.y += 0.05;
-          /* Move camera backwards */
+					pitch += M_PI / 18;
+					updateRotation();
+					/* Move camera backwards */
           break;
 	      case SDLK_LEFT:
-                cameraPos.x -= 0.05;
+					yaw += M_PI / 18;
+					updateRotation();
           /* Move camera left */
           break;
 	      case SDLK_RIGHT:
-                cameraPos.x += 0.05;
+					yaw -= M_PI / 18;
+					updateRotation();
           /* Move camera right */
           break;
+				case SDLK_w:
+					camDy -= 5;
+					updateRotation();
+					break;
+				case SDLK_s:
+					camDy += 5;
+					updateRotation();
+					break;
+				case SDLK_a:
+					camDx -= 5;
+					updateRotation();
+					break;
+				case SDLK_d:
+					camDx += 5;
+					updateRotation();
+					break;
+				case SDLK_EQUALS:
+					camDz += 5;
+					updateRotation();
+					break;
+				case SDLK_MINUS:
+					camDz -= 5;
+					updateRotation();
+					break;
 	      case SDLK_ESCAPE:
           /* Move camera quit */
           return false;
@@ -164,6 +199,29 @@ bool Update() {
   return true;
 }
 
+void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
+
+	R[0][0] = cos(thetaY) * cos(thetaZ);
+	R[0][1] = -cos(thetaX) * sin(thetaZ) + sin(thetaX) * sin(thetaY) * cos(thetaZ);
+	R[0][2] = sin(thetaX) * sin(thetaZ) + cos(thetaX) * sin(thetaY) * cos(thetaZ);
+	
+	R[1][0] = cos(thetaY) * sin(thetaZ);
+	R[1][1] = cos(thetaX) * cos(thetaZ) + sin(thetaX) * sin(thetaY) * sin(thetaZ);
+	R[1][2] = -sin(thetaX) * cos(thetaZ) + cos(thetaX) * sin(thetaY) * sin(thetaZ);
+	
+	R[2][0] = -sin(thetaY);
+	R[2][1] = sin(thetaX) * cos(thetaY);
+	R[2][2] = cos(thetaX) * cos(thetaY);
+}
+
 void updateRotation() {
+	mat3 RT;
     
+	getRotationMatrix(pitch, yaw, 0, RT);
+    
+	R = mat4(RT);
+	
+	vec4 translation = vec4(camDx, camDy, camDz, 1);
+
+	R[3] = translation;
 }

@@ -16,8 +16,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 600
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 200
+#define SCREEN_HEIGHT 200
 #define FULLSCREEN_MODE false
 
 struct Intersection {
@@ -123,7 +123,7 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
         float u = glm::determinant(A2) / detA;
         float v = glm::determinant(A3) / detA;
 
-        if (u > 0 && v > 0 && (u + v) < 1) {
+        if (u >= 0 && v >= 0 && (u + v) <= 1) {
             // Intersection occured
             vec4 position = start + t * dir;
             float dist = distance(start, position);

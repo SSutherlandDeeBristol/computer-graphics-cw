@@ -16,8 +16,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 190
-#define SCREEN_HEIGHT 128
+#define SCREEN_WIDTH 600
+#define SCREEN_HEIGHT 600
 #define FULLSCREEN_MODE false
 
 struct Intersection {
@@ -31,6 +31,7 @@ vec4 cameraPos(0.0, 0.0, -2, 1.0);
 
 vec4 lightPos( 0, -0.5, -0.7, 1.0 );
 vec3 lightColor = 14.f * vec3( 1, 1, 1 );
+vec3 indirectLight = 0.5f * vec3( 1, 1, 1 );
 
 std::vector<Triangle> triangles;
 mat4 R;
@@ -62,8 +63,34 @@ int main(int argc, char* argv[]) {
   SDL_SaveImage(screen, "screenshot.bmp");
 
   KillSDL(screen);
-    
+
   return 0;
+}
+
+/* Place your drawing here */
+void Draw(screen* screen) {
+  /* Clear buffer */
+  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+
+  for (int x = 0; x < SCREEN_WIDTH; x++) {
+    for (int y = 0; y < SCREEN_HEIGHT; y++) {
+      vec4 d = normalize(R * vec4(x - SCREEN_WIDTH/2, y - SCREEN_HEIGHT/2, focalLength, 1));
+      Intersection intersection;
+
+      vec3 directLight(0.0, 0.0, 0.0); // The direct colour
+			vec3 reflectedLight(0.0, 0.0, 0.0); // The visible colour
+			vec3 colour(0.0, 0.0, 0.0); // The original colour of the triangle
+
+      if (ClosestIntersection(cameraPos, d, triangles, intersection)) {
+				directLight = DirectLight(intersection);
+				colour = triangles[intersection.triangleIndex].color;
+
+				reflectedLight = colour * (directLight + indirectLight);
+      }
+
+      PutPixelSDL(screen, x, y, reflectedLight);
+    }
+  }
 }
 
 bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection) {
@@ -83,24 +110,24 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
 
     mat3 A = mat3(-d, e1, e2);
     //vec3 x = glm::inverse(A) * b;
-      
+
     mat3 A1(b, e1, e2);
     float detA = glm::determinant(A);
-      
+
     float t = glm::determinant(A1) / detA;
-      
+
     if (t > 0) {
         mat3 A2(-vec3(dir), b, e2);
         mat3 A3(-vec3(dir), e1, b);
-          
+
         float u = glm::determinant(A2) / detA;
         float v = glm::determinant(A3) / detA;
-          
+
         if (u > 0 && v > 0 && (u + v) < 1) {
             // Intersection occured
             vec4 position = start + t * dir;
             float dist = distance(start, position);
-            
+
             if (dist <= closestIntersection.distance) {
                 intersectionFound = true;
                 closestIntersection.distance = dist;
@@ -110,30 +137,62 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
         }
     }
   }
-      
+
   return intersectionFound;
 }
 
-/* Place your drawing here */
-void Draw(screen* screen) {
-  /* Clear buffer */
-  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
+	R[0][0] = cos(thetaY) * cos(thetaZ);
+	R[0][1] = -cos(thetaX) * sin(thetaZ) + sin(thetaX) * sin(thetaY) * cos(thetaZ);
+	R[0][2] = sin(thetaX) * sin(thetaZ) + cos(thetaX) * sin(thetaY) * cos(thetaZ);
 
-  for (int x = 0; x < SCREEN_WIDTH; x++) {
-    for (int y = 0; y < SCREEN_HEIGHT; y++) {
-      vec4 d = normalize(R * vec4(x - SCREEN_WIDTH/2, y - SCREEN_HEIGHT/2, focalLength, 1));
-      Intersection intersection;
-  
-      vec3 colour(0.0, 0.0, 0.0); // Initialise to black
+	R[1][0] = cos(thetaY) * sin(thetaZ);
+	R[1][1] = cos(thetaX) * cos(thetaZ) + sin(thetaX) * sin(thetaY) * sin(thetaZ);
+	R[1][2] = -sin(thetaX) * cos(thetaZ) + cos(thetaX) * sin(thetaY) * sin(thetaZ);
 
-      if (ClosestIntersection(cameraPos, d, triangles, intersection)) {
-				colour = DirectLight(intersection);
-        //colour = triangles[intersection.triangleIndex].color;
-      }
+	R[2][0] = -sin(thetaY);
+	R[2][1] = sin(thetaX) * cos(thetaY);
+	R[2][2] = cos(thetaX) * cos(thetaY);
+}
 
-      PutPixelSDL(screen, x, y, colour);
-    }
-  }
+void updateRotation() {
+	mat3 RT;
+
+	getRotationMatrix(pitch, yaw, 0, RT);
+
+	R = mat4(RT);
+
+	vec4 translation = vec4(camDx, camDy, camDz, 1);
+
+	R[3] = translation;
+}
+
+vec3 DirectLight( const Intersection& i ) {
+	Triangle triangle = triangles[i.triangleIndex];
+
+	float r = distance(i.position, lightPos);
+
+	float A = 4 * M_PI * pow(r, 2);
+
+	vec4 lightDir = lightPos - i.position;
+
+	vec4 rHat = normalize(lightDir);
+	vec4 nHat = normalize(triangle.normal);
+
+	vec3 B = lightColor / A;
+	vec3 D = B * max(dot(rHat,nHat), 0.0f);
+	vec3 C = D * triangle.color;
+
+	Intersection intersection;
+	vec3 black = vec3(0.0, 0.0, 0.0); // Initialise to black
+
+	if (ClosestIntersection(i.position, lightDir, triangles, intersection)) {
+		if (intersection.triangleIndex != i.triangleIndex && intersection.distance < r) {
+			C = black;
+		}
+	}
+
+	return C;
 }
 
 /*Place updates of parameters here*/
@@ -222,59 +281,4 @@ bool Update() {
     }
   }
   return true;
-}
-
-void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
-
-	R[0][0] = cos(thetaY) * cos(thetaZ);
-	R[0][1] = -cos(thetaX) * sin(thetaZ) + sin(thetaX) * sin(thetaY) * cos(thetaZ);
-	R[0][2] = sin(thetaX) * sin(thetaZ) + cos(thetaX) * sin(thetaY) * cos(thetaZ);
-	
-	R[1][0] = cos(thetaY) * sin(thetaZ);
-	R[1][1] = cos(thetaX) * cos(thetaZ) + sin(thetaX) * sin(thetaY) * sin(thetaZ);
-	R[1][2] = -sin(thetaX) * cos(thetaZ) + cos(thetaX) * sin(thetaY) * sin(thetaZ);
-	
-	R[2][0] = -sin(thetaY);
-	R[2][1] = sin(thetaX) * cos(thetaY);
-	R[2][2] = cos(thetaX) * cos(thetaY);
-}
-
-void updateRotation() {
-	mat3 RT;
-    
-	getRotationMatrix(pitch, yaw, 0, RT);
-    
-	R = mat4(RT);
-	
-	vec4 translation = vec4(camDx, camDy, camDz, 1);
-
-	R[3] = translation;
-}
-
-vec3 DirectLight( const Intersection& i ) {
-	Triangle triangle = triangles[i.triangleIndex];
-	
-	float r = distance(i.position, lightPos);
-	
-	float A = 4 * M_PI * pow(r, 2);
-	
-	vec4 lightDir = lightPos - i.position;
-	
-	vec4 rHat = normalize(lightDir);
-	vec4 nHat = normalize(triangle.normal);
-	
-	vec3 B = lightColor / A;
-	vec3 D = B * max(dot(rHat,nHat), 0.0f);
-	vec3 C = D * triangle.color;
-	
-	Intersection intersection;
-	vec3 black = vec3(0.0, 0.0, 0.0); // Initialise to black
-	
-	if (ClosestIntersection(i.position, lightDir, triangles, intersection)) {
-		if (intersection.triangleIndex != i.triangleIndex && intersection.distance < r) {
-			C = black;
-		}
-	}
-	
-	return C;
 }

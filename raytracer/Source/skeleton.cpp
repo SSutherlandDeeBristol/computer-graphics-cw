@@ -16,8 +16,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 600
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 190
+#define SCREEN_HEIGHT 128
 #define FULLSCREEN_MODE false
 
 struct Intersection {
@@ -121,7 +121,7 @@ void Draw(screen* screen) {
 
   for (int x = 0; x < SCREEN_WIDTH; x++) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
-      vec4 d = R * vec4(x - SCREEN_WIDTH/2, y - SCREEN_HEIGHT/2, focalLength, 1);
+      vec4 d = normalize(R * vec4(x - SCREEN_WIDTH/2, y - SCREEN_HEIGHT/2, focalLength, 1));
       Intersection intersection;
   
       vec3 colour(0.0, 0.0, 0.0); // Initialise to black

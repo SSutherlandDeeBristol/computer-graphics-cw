@@ -16,8 +16,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 200
-#define SCREEN_HEIGHT 200
+#define SCREEN_WIDTH 100
+#define SCREEN_HEIGHT 100
 #define FULLSCREEN_MODE false
 
 struct Intersection {
@@ -26,8 +26,8 @@ struct Intersection {
   int triangleIndex;
 };
 
-float focalLength = SCREEN_WIDTH/2;
-vec4 cameraPos(0.0, 0.0, -2, 1.0);
+float focalLength = SCREEN_HEIGHT;
+vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
 
 vec4 lightPos( 0, -0.5, -0.7, 1.0 );
 vec3 lightColor = 14.f * vec3( 1, 1, 1 );
@@ -39,7 +39,6 @@ mat4 R;
 float yaw = 0;
 float pitch = 0;
 float camDx = 0, camDy = 0, camDz = 0;
-
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -117,24 +116,24 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
     float t = glm::determinant(A1) / detA;
 
     if (t > 0) {
-        mat3 A2(-vec3(dir), b, e2);
-        mat3 A3(-vec3(dir), e1, b);
+			mat3 A2(-vec3(dir), b, e2);
+			mat3 A3(-vec3(dir), e1, b);
 
-        float u = glm::determinant(A2) / detA;
-        float v = glm::determinant(A3) / detA;
+			float u = glm::determinant(A2) / detA;
+			float v = glm::determinant(A3) / detA;
 
-        if (u >= 0 && v >= 0 && (u + v) <= 1) {
-            // Intersection occured
-            vec4 position = start + t * dir;
-            float dist = distance(start, position);
+			if (u >= 0 && v >= 0 && (u + v) <= 1) {
+				// Intersection occured
+				vec4 position = start + t * dir;
+				float dist = distance(start, position);
 
-            if (dist <= closestIntersection.distance) {
-                intersectionFound = true;
-                closestIntersection.distance = dist;
-                closestIntersection.position = position;
-                closestIntersection.triangleIndex = i;
-            }
-        }
+				if (dist <= closestIntersection.distance) {
+					intersectionFound = true;
+					closestIntersection.distance = dist;
+					closestIntersection.position = position;
+					closestIntersection.triangleIndex = i;
+				}
+			}
     }
   }
 

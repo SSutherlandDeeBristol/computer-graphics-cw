@@ -111,7 +111,6 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
     vec3 d = vec3(dir.x, dir.y, dir.z);
 
     mat3 A = mat3(-d, e1, e2);
-    //vec3 x = glm::inverse(A) * b;
 
     mat3 A1(b, e1, e2);
     float detA = glm::determinant(A);
@@ -163,10 +162,8 @@ void updateRotation() {
 	getRotationMatrix(pitch, yaw, 0, RT);
 
 	R = mat4(RT);
-
-	// vec4 translation = vec4(camDx, camDy, camDz, 1);
-
-	// R[3] = translation;
+	
+	R = transpose(R);
 }
 
 void moveCameraRight(int direction, float distance) {

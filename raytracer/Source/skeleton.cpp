@@ -49,6 +49,9 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void updateRotation();
 vec3 DirectLight( const Intersection& i );
+void moveCameraRight(int direction);
+void moveCameraUp(int direction);
+void moveCameraForward(int direction);
 
 int main(int argc, char* argv[]) {
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
@@ -166,6 +169,24 @@ void updateRotation() {
 	// R[3] = translation;
 }
 
+void moveCameraRight(int direction, float distance) {
+	vec4 right(R[0][0], R[0][1], R[0][2], 1);
+	
+	cameraPos += direction * distance * right;
+}
+
+void moveCameraUp(int direction, float distance) {
+	vec4 up(R[1][0], R[1][1], R[1][2], 1);
+	
+	cameraPos += direction * distance * up;
+}
+
+void moveCameraForward(int direction, float distance) {
+	vec4 forward(R[2][0], R[2][1], R[2][2], 1);
+	
+	cameraPos += direction * distance * forward;
+}
+
 vec3 DirectLight( const Intersection& i ) {
 	Triangle triangle = triangles[i.triangleIndex];
 
@@ -232,28 +253,22 @@ bool Update() {
           /* Move camera right */
           break;
 				case SDLK_w:
-					cameraPos.y -= 0.25;
-					updateRotation();
+					moveCameraUp(-1, 0.25);
 					break;
 				case SDLK_s:
-					cameraPos.y += 0.25;
-					updateRotation();
+					moveCameraUp(1, 0.25);
 					break;
 				case SDLK_a:
-					cameraPos.x -= 0.25;
-					updateRotation();
+					moveCameraRight(-1, 0.25);
 					break;
 				case SDLK_d:
-					cameraPos.x += 0.25;
-					updateRotation();
+					moveCameraRight(1, 0.25);
 					break;
 				case SDLK_EQUALS:
-					cameraPos.z += 0.25;
-					updateRotation();
+					moveCameraForward(1, 0.25);
 					break;
 				case SDLK_MINUS:
-					cameraPos.z -= 0.25;
-					updateRotation();
+					moveCameraForward(-1, 0.25);
 					break;
 				case SDLK_i:
 					lightPos.z += 0.5;

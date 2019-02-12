@@ -170,19 +170,19 @@ void updateRotation() {
 }
 
 void moveCameraRight(int direction, float distance) {
-	vec4 right(R[0][0], R[0][1], R[0][2], 1);
+	vec4 right(R[0][0], R[0][1], R[0][2], 0);
 	
 	cameraPos += direction * distance * right;
 }
 
 void moveCameraUp(int direction, float distance) {
-	vec4 up(R[1][0], R[1][1], R[1][2], 1);
+	vec4 up(R[1][0], R[1][1], R[1][2], 0);
 	
 	cameraPos += direction * distance * up;
 }
 
 void moveCameraForward(int direction, float distance) {
-	vec4 forward(R[2][0], R[2][1], R[2][2], 1);
+	vec4 forward(R[2][0], R[2][1], R[2][2], 0);
 	
 	cameraPos += direction * distance * forward;
 }
@@ -206,7 +206,7 @@ vec3 DirectLight( const Intersection& i ) {
 	Intersection intersection;
 	vec3 black = vec3(0.0, 0.0, 0.0); // Initialise to black
 
-	if (ClosestIntersection(i.position, lightDir, triangles, intersection)) {
+	if (ClosestIntersection(i.position, rHat, triangles, intersection)) {
 		if (intersection.triangleIndex != i.triangleIndex && intersection.distance < r) {
 			C = black;
 		}
@@ -235,22 +235,18 @@ bool Update() {
 	      case SDLK_UP:
 					pitch -= M_PI / 18;
 					updateRotation();
-					/* Move camera forward */
 					break;
 	      case SDLK_DOWN:
 					pitch += M_PI / 18;
 					updateRotation();
-					/* Move camera backwards */
           break;
 	      case SDLK_LEFT:
 					yaw += M_PI / 18;
 					updateRotation();
-          /* Move camera left */
           break;
 	      case SDLK_RIGHT:
 					yaw -= M_PI / 18;
 					updateRotation();
-          /* Move camera right */
           break;
 				case SDLK_w:
 					moveCameraUp(-1, 0.25);

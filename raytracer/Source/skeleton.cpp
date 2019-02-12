@@ -16,8 +16,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 100
-#define SCREEN_HEIGHT 100
+#define SCREEN_WIDTH 70
+#define SCREEN_HEIGHT 70
 #define FULLSCREEN_MODE false
 
 struct Intersection {
@@ -38,7 +38,7 @@ mat4 R;
 
 float yaw = 0;
 float pitch = 0;
-float camDx = 0, camDy = 0, camDz = 0;
+// float camDx = 0, camDy = 0, camDz = 0;
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -161,9 +161,9 @@ void updateRotation() {
 
 	R = mat4(RT);
 
-	vec4 translation = vec4(camDx, camDy, camDz, 1);
+	// vec4 translation = vec4(camDx, camDy, camDz, 1);
 
-	R[3] = translation;
+	// R[3] = translation;
 }
 
 vec3 DirectLight( const Intersection& i ) {
@@ -232,27 +232,27 @@ bool Update() {
           /* Move camera right */
           break;
 				case SDLK_w:
-					camDy -= 5;
+					cameraPos.y -= 0.25;
 					updateRotation();
 					break;
 				case SDLK_s:
-					camDy += 5;
+					cameraPos.y += 0.25;
 					updateRotation();
 					break;
 				case SDLK_a:
-					camDx -= 5;
+					cameraPos.x -= 0.25;
 					updateRotation();
 					break;
 				case SDLK_d:
-					camDx += 5;
+					cameraPos.x += 0.25;
 					updateRotation();
 					break;
 				case SDLK_EQUALS:
-					camDz += 5;
+					cameraPos.z += 0.25;
 					updateRotation();
 					break;
 				case SDLK_MINUS:
-					camDz -= 5;
+					cameraPos.z -= 0.25;
 					updateRotation();
 					break;
 				case SDLK_i:

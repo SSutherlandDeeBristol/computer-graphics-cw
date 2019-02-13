@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include "limits"
 #include <math.h>
-#include "mpi.h"
 
 using namespace std;
 using glm::vec3;
@@ -162,25 +161,22 @@ void updateRotation() {
 	getRotationMatrix(pitch, yaw, 0, RT);
 
 	R = mat4(RT);
-	
+
 	R = transpose(R);
 }
 
 void moveCameraRight(int direction, float distance) {
 	vec4 right(R[0][0], R[0][1], R[0][2], 0);
-	
 	cameraPos += direction * distance * right;
 }
 
 void moveCameraUp(int direction, float distance) {
 	vec4 up(R[1][0], R[1][1], R[1][2], 0);
-	
 	cameraPos += direction * distance * up;
 }
 
 void moveCameraForward(int direction, float distance) {
 	vec4 forward(R[2][0], R[2][1], R[2][2], 0);
-	
 	cameraPos += direction * distance * forward;
 }
 

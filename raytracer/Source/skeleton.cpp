@@ -39,7 +39,6 @@ mat4 R;
 
 float yaw = 0;
 float pitch = 0;
-// float camDx = 0, camDy = 0, camDz = 0;
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -55,28 +54,6 @@ void moveCameraUp(int direction);
 void moveCameraForward(int direction);
 
 int main(int argc, char* argv[]) {
-	int rank;               /* 'rank' of process among it's cohort */
-	int size;               /* size of cohort, i.e. num processes started */
-	int dest;
-	int source;
-	
-	int tag = 0;
-	
-	MPI_Status status;     /* struct used by MPI_Recv */
-	
-	// Initialise our MPI environment
-	MPI_Init(&argc, &argv);
-	
-	/*
-	 ** determine the SIZE of the group of processes associated with
-	 ** the 'communicator'.  MPI_COMM_WORLD is the default communicator
-	 ** consisting of all the processes in the launched MPI 'job'
-	 */
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	
-	// Determine the RANK of the current process [0:SIZE-1]
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
   LoadTestModel(triangles);
 
@@ -89,11 +66,7 @@ int main(int argc, char* argv[]) {
 
   KillSDL(screen);
 
-	// Finialise the MPI enviroment
-	MPI_Finalize();
-	
-	// And exit the program
-	return EXIT_SUCCESS;
+	return 0;
 }
 
 /* Place your drawing here */

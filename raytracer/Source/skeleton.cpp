@@ -26,7 +26,8 @@ struct Intersection {
   int triangleIndex;
 };
 
-float focalLength = SCREEN_HEIGHT;
+const float focalLength = SCREEN_HEIGHT;
+const float shadowBiasThreshold = 0.001f;
 vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
 
 vec4 lightPos( 0, -0.5, -0.7, 1.0 );
@@ -129,7 +130,7 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
 				vec4 position = start + t * dir;
 				float dist = distance(start, position);
 
-				if (dist <= closestIntersection.distance) {
+				if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
 					intersectionFound = true;
 					closestIntersection.distance = dist;
 					closestIntersection.position = position;

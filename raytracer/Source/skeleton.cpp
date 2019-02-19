@@ -214,7 +214,7 @@ void lookAt(mat4& ctw) { /* TODO! */
 	// vec3 fromPos = vec3(cameraPos);
 	vec3 fromPos = vec3(cameraPos.x, cameraPos.y, cameraPos.z);
 
-	vec3 forward = normalize(fromPos - toPos);
+	vec3 forward = -normalize(fromPos - toPos);
 
 	vec3 tmp = vec3(0, 1, 0);
 	vec3 right = cross(normalize(tmp), forward);
@@ -237,8 +237,8 @@ void lookAt(mat4& ctw) { /* TODO! */
 
 	ctw[3][3] = 1;
 
+  //ctw = transpose(ctw);
 	R = ctw;
-	// ctw = transpose(ctw);
 }
 
 /*Place updates of parameters here*/

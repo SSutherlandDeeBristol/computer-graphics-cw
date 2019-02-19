@@ -28,6 +28,7 @@ struct Intersection {
 
 const float focalLength = SCREEN_HEIGHT;
 const float shadowBiasThreshold = 0.001f;
+const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
 vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
 
 vec4 lightPos( 0, -0.5, -0.7, 1.0 );
@@ -287,8 +288,14 @@ bool Update() {
 				case SDLK_r:
 					/* Look-At function, points camera to 0,0,0 */
 					lookAt(ctw);
-					// cameraPos = ctw * cameraPos;
 					break;
+        case SDLK_t:
+          // Reset camera position
+          cameraPos = defaultCameraPos;
+          pitch = 0;
+          yaw = 0;
+          updateRotation();
+          break;
 				case SDLK_w:
 					moveCameraUp(-1, 0.25);
 					break;

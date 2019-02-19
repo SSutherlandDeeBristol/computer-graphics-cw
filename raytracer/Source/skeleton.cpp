@@ -263,11 +263,11 @@ bool Update() {
 	    int key_code = e.key.keysym.sym;
 	    switch(key_code) {
 	      case SDLK_UP:
-					pitch -= M_PI / 18;
+					pitch += M_PI / 18;
 					updateRotation();
 					break;
 	      case SDLK_DOWN:
-					pitch += M_PI / 18;
+					pitch -= M_PI / 18;
 					updateRotation();
           break;
 	      case SDLK_LEFT:

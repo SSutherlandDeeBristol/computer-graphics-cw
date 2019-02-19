@@ -240,6 +240,11 @@ void lookAt(mat4& ctw) { /* TODO! */
 
   //ctw = transpose(ctw);
 	R = ctw;
+
+  pitch = asin(-forward.y);
+  yaw = atan2(forward.x, forward.z);
+
+  updateRotation();
 }
 
 /*Place updates of parameters here*/

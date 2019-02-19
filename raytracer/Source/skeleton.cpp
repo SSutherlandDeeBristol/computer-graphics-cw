@@ -51,6 +51,7 @@ vec3 DirectLight( const Intersection& i );
 void moveCameraRight(int direction);
 void moveCameraUp(int direction);
 void moveCameraForward(int direction);
+void lookAt(mat4& ctw);
 
 int main(int argc, char* argv[]) {
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
@@ -208,6 +209,38 @@ vec3 DirectLight( const Intersection& i ) {
 	return C;
 }
 
+void lookAt(mat4& ctw) { /* TODO! */
+	vec3 toPos = vec3(0, 0, 0);
+	// vec3 fromPos = vec3(cameraPos);
+	vec3 fromPos = vec3(cameraPos.x, cameraPos.y, cameraPos.z);
+
+	vec3 forward = normalize(fromPos - toPos);
+
+	vec3 tmp = vec3(0, 1, 0);
+	vec3 right = cross(normalize(tmp), forward);
+
+	vec3 up = cross(forward, right);
+
+	ctw[0][0] = right.x;
+	ctw[0][1] = right.y;
+	ctw[0][2] = right.z;
+	ctw[1][0] = up.x;
+	ctw[1][1] = up.y;
+	ctw[1][2] = up.z;
+	ctw[2][0] = forward.x;
+	ctw[2][1] = forward.y;
+	ctw[2][2] = forward.z;
+
+	ctw[3][0] = fromPos.x;
+	ctw[3][1] = fromPos.y;
+	ctw[3][2] = fromPos.z;
+
+	ctw[3][3] = 1;
+
+	R = ctw;
+	// ctw = transpose(ctw);
+}
+
 /*Place updates of parameters here*/
 bool Update() {
   static int t = SDL_GetTicks();
@@ -217,6 +250,10 @@ bool Update() {
   t = t2;
 
   std::cout << "Render time: " << dt << " ms." << std::endl;
+
+	// std::cout << "cx: " << cameraPos.x << ", cy:" << cameraPos.y << ", cz:"<< cameraPos.z << std::endl;
+
+	mat4 ctw;
 
   SDL_Event e;
   while(SDL_PollEvent(&e)) {
@@ -241,6 +278,11 @@ bool Update() {
 					yaw += M_PI / 18;
 					updateRotation();
           break;
+				case SDLK_r:
+					/* Look-At function, points camera to 0,0,0 */
+					lookAt(ctw);
+					// cameraPos = ctw * cameraPos;
+					break;
 				case SDLK_w:
 					moveCameraUp(-1, 0.25);
 					break;

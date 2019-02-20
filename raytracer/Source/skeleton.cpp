@@ -164,15 +164,18 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
 
     // -b - h or -b + h
     for(int sign = -1; sign <= 1; sign += 2) {
-      float sol = -b + sign * h;
-      vec4 position = start + sol * dir;
-      float dist = distance(start, position);
+      // To prevent doing the same sum twice
+      if (!(sign == 1 & h == 0)) {
+        float sol = -b + sign * h;
+        vec4 position = start + sol * dir;
+        float dist = distance(start, position);
 
-      if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
-        intersectionFound = true;
-        closestIntersection.distance = dist;
-        closestIntersection.position = position;
-        closestIntersection.triangleIndex = i;
+        if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
+          intersectionFound = true;
+          closestIntersection.distance = dist;
+          closestIntersection.position = position;
+          closestIntersection.triangleIndex = i;
+        }
       }
     }
   }

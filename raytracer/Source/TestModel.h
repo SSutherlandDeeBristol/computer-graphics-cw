@@ -7,8 +7,7 @@
 #include <vector>
 
 // Used to describe a triangular surface:
-class Triangle
-{
+class Triangle {
 public:
 	glm::vec4 v0;
 	glm::vec4 v1;
@@ -34,11 +33,25 @@ public:
 	}
 };
 
+// Used to describe a spherical surface:
+class Sphere {
+public:
+	glm::vec4 centre;
+	float radius;
+	glm::vec3 color;
+
+	Sphere( glm::vec4 centre, float radius, glm::vec3 color )
+		: centre(centre), radius(radius), color(color)
+	{
+
+	}
+};
+
 // Loads the Cornell Box. It is scaled to fill the volume:
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-void LoadTestModel( std::vector<Triangle>& triangles )
+void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spheres )
 {
 	using glm::vec3;
 	using glm::vec4;
@@ -54,6 +67,9 @@ void LoadTestModel( std::vector<Triangle>& triangles )
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
+
+	spheres.clear();
+	spheres.reserve(1);
 
 	// ---------------------------------------------------------------------------
 	// Room
@@ -97,7 +113,7 @@ void LoadTestModel( std::vector<Triangle>& triangles )
 	B = vec4(130,0, 65,1);
 	C = vec4(240,0,272,1);
 	D = vec4( 82,0,225,1);
-	       
+
 	E = vec4(290,165,114,1);
 	F = vec4(130,165, 65,1);
 	G = vec4(240,165,272,1);
@@ -130,7 +146,7 @@ void LoadTestModel( std::vector<Triangle>& triangles )
 	B = vec4(265,0,296,1);
 	C = vec4(472,0,406,1);
 	D = vec4(314,0,456,1);
-	       
+
 	E = vec4(423,330,247,1);
 	F = vec4(265,330,296,1);
 	G = vec4(472,330,406,1);
@@ -156,6 +172,7 @@ void LoadTestModel( std::vector<Triangle>& triangles )
 	triangles.push_back( Triangle(G,F,E,blue) );
 	triangles.push_back( Triangle(G,H,F,blue) );
 
+	spheres.push_back( Sphere(vec4(0,0,0,1),0.3,purple) );
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3
@@ -181,7 +198,7 @@ void LoadTestModel( std::vector<Triangle>& triangles )
 		triangles[i].v0.w = 1.0;
 		triangles[i].v1.w = 1.0;
 		triangles[i].v2.w = 1.0;
-		
+
 		triangles[i].ComputeNormal();
 	}
 }

@@ -27,17 +27,19 @@ struct Intersection {
 };
 
 const float focalLength = SCREEN_HEIGHT;
-const float shadowBiasThreshold = 0.001f;
 const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
 vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
 
+const vec4 defaultLightPos( 0, -0.5, -0.7, 1.0 );
 vec4 lightPos( 0, -0.5, -0.7, 1.0 );
 vec3 lightColor = 14.f * vec3( 1, 1, 1 );
 vec3 indirectLight = 0.5f * vec3( 1, 1, 1 );
+const float shadowBiasThreshold = 0.001f;
 
 std::vector<Triangle> triangles;
-mat4 R;
+std::vector<Sphere> spheres;
 
+mat4 R;
 float yaw = 0;
 float pitch = 0;
 
@@ -46,7 +48,7 @@ float pitch = 0;
 
 bool Update();
 void Draw(screen* screen);
-bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection);
+bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, const vector<Sphere>& spheres, Intersection& closestIntersection);
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void updateRotation();
 vec3 DirectLight( const Intersection& i );
@@ -57,7 +59,7 @@ void lookAt(mat4& ctw);
 
 int main(int argc, char* argv[]) {
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-  LoadTestModel(triangles);
+  LoadTestModel(triangles, spheres);
 
   while (Update()) {
     Draw(screen);
@@ -85,7 +87,7 @@ void Draw(screen* screen) {
 			vec3 reflectedLight(0.0, 0.0, 0.0); // The visible colour
 			vec3 colour(0.0, 0.0, 0.0); // The original colour of the triangle
 
-      if (ClosestIntersection(cameraPos, d, triangles, intersection)) {
+      if (ClosestIntersection(cameraPos, d, triangles, spheres, intersection)) {
 				directLight = DirectLight(intersection);
 				colour = triangles[intersection.triangleIndex].color;
 
@@ -97,7 +99,7 @@ void Draw(screen* screen) {
   }
 }
 
-bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection) {
+bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, const vector<Sphere>& spheres, Intersection& closestIntersection) {
   bool intersectionFound = false;
   closestIntersection = Intersection();
   closestIntersection.distance = std::numeric_limits<float>::max();
@@ -138,6 +140,40 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
 					closestIntersection.triangleIndex = i;
 				}
 			}
+    }
+  }
+
+  for(std::vector<Sphere>::size_type i = 0; i < spheres.size(); i++) {
+    vec3 ro = vec3(start);
+    vec3 rd = vec3(dir);
+
+    vec3 ce = vec3(spheres[i].centre);
+    float ra = spheres[i].radius;
+
+    vec3 oc = ro - ce;
+    float b = dot( oc, rd );
+    float c = dot( oc, oc ) - ra*ra;
+    float h = b*b - c;
+
+    if( h < 0.0 ) {
+      // no intersection
+      break;
+    }
+
+    h = sqrt( h );
+
+    // -b - h or -b + h
+    for(int sign = -1; sign <= 1; sign += 2) {
+      float sol = -b + sign * h;
+      vec4 position = start + sol * dir;
+      float dist = distance(start, position);
+
+      if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
+        intersectionFound = true;
+        closestIntersection.distance = dist;
+        closestIntersection.position = position;
+        closestIntersection.triangleIndex = i;
+      }
     }
   }
 
@@ -202,7 +238,7 @@ vec3 DirectLight( const Intersection& i ) {
 	Intersection intersection;
 	vec3 black = vec3(0.0, 0.0, 0.0); // Initialise to black
 
-	if (ClosestIntersection(i.position, rHat, triangles, intersection)) {
+	if (ClosestIntersection(i.position, rHat, triangles, spheres, intersection)) {
 		if (intersection.triangleIndex != i.triangleIndex && intersection.distance < r) {
 			C = black;
 		}
@@ -292,6 +328,7 @@ bool Update() {
         case SDLK_t:
           // Reset camera position
           cameraPos = defaultCameraPos;
+          lightPos = defaultLightPos;
           pitch = 0;
           yaw = 0;
           updateRotation();

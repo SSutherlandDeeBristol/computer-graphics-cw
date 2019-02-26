@@ -30,6 +30,7 @@ void Draw(screen* screen);
 void VertexShader( const vec4& v, ivec2& p );
 bool isWithinBounds(ivec2 v);
 glm::mat4x4 TransformationMatrix(glm::vec4 camPos, glm::mat3x3 rot);
+void Interpolate( glm::ivec2 a, glm::ivec2 b, vector<glm::ivec2>& result );
 
 int main( int argc, char* argv[] ) {
 
@@ -94,6 +95,17 @@ glm::mat4x4 TransformationMatrix(glm::vec4 camPos, glm::mat3x3 rot) {
 
 bool isWithinBounds(ivec2 v) {
   return v.x > 0 && v.x < SCREEN_WIDTH && v.y > 0 && v.y < SCREEN_HEIGHT;
+}
+
+void Interpolate( glm::ivec2 a, glm::ivec2 b, vector<glm::ivec2>& result ) {
+  int N = result.size();
+  glm::vec2 step = glm::vec2(b-a) / float(max(N-1,1));
+  glm::vec2 current( a );
+
+  for( int i=0; i<N; ++i ) {
+    result[i] = current;
+    current += step;
+  }
 }
 
 /*Place updates of parameters here*/

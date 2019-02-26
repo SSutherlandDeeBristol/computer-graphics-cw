@@ -29,6 +29,7 @@ bool Update();
 void Draw(screen* screen);
 void VertexShader( const vec4& v, ivec2& p );
 bool isWithinBounds(ivec2 v);
+glm::mat4x4 TransformationMatrix(glm::vec4 camPos, glm::mat3x3 rot);
 
 int main( int argc, char* argv[] ) {
 
@@ -61,7 +62,6 @@ void VertexShader( const vec4& v, ivec2& p ) {
 void Draw(screen* screen) {
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
-
   for( uint32_t i=0; i<triangles.size(); ++i ) {
     vector<vec4> vertices(3);
     vertices[0] = triangles[i].v0;
@@ -74,6 +74,22 @@ void Draw(screen* screen) {
       if (isWithinBounds(projPos)) PutPixelSDL( screen, projPos.x, projPos.y, color );
     }
   }
+}
+
+glm::mat4x4 TransformationMatrix(glm::vec4 camPos, glm::mat3x3 rot) {
+  vec4 zeroVec(0,0,0,0);
+  glm::mat4x4 m1(zeroVec, zeroVec, zeroVec, camPos);
+
+  vec4 rot0(rot[0], 0);
+  vec4 rot1(rot[1], 0);
+  vec4 rot2(rot[2], 0);
+
+  glm::mat4x4 m2(rot0, rot1, rot2, vec4(0,0,0,1));
+
+  vec4 minusCamPos(-camPos[0], -camPos[1], -camPos[2], 1);
+  glm::mat4x4 m3(zeroVec, zeroVec, zeroVec, minusCamPos);
+
+  return ((m1 * m2) * m3);
 }
 
 bool isWithinBounds(ivec2 v) {

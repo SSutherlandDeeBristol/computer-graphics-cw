@@ -61,6 +61,17 @@ glm::mat4x4 TransformationMatrix(glm::vec4 camPos, glm::mat3x3 rot) {
   return ((m1 * m2) * m3);
 }
 
+void Interpolate( ivec2 a, ivec2 b, vector<ivec2>& result ) {
+  int N = result.size();
+  vec2 step = vec2(b-a) / float(max(N-1,1));
+  vec2 current( a );
+  
+  for( int i=0; i<N; ++i ) {
+    result[i] = current;
+    current += step;
+  }
+}
+
 /*Place updates of parameters here*/
 bool Update() {
   static int t = SDL_GetTicks();

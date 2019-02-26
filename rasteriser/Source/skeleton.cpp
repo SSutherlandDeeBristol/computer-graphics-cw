@@ -19,7 +19,7 @@ SDL_Event event;
 #define FULLSCREEN_MODE false
 
 const float focalLength = SCREEN_HEIGHT;
-
+vec4 cameraPos( 0, 0, -3.001,1 );
 std::vector<Triangle> triangles;
 
 /* ----------------------------------------------------------------------------*/
@@ -31,6 +31,7 @@ void VertexShader( const vec4& v, ivec2& p );
 bool isWithinBounds(ivec2 v);
 glm::mat4x4 TransformationMatrix(glm::vec4 camPos, glm::mat3x3 rot);
 void Interpolate( glm::ivec2 a, glm::ivec2 b, vector<glm::ivec2>& result );
+void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 
 int main( int argc, char* argv[] ) {
 
@@ -49,19 +50,17 @@ int main( int argc, char* argv[] ) {
   return 0;
 }
 
-void VertexShader( const vec4& v, ivec2& p ) {
-  int x = 0, y = 0;
-
-  x = focalLength * (v.x / v.z) + SCREEN_WIDTH / 2;
-  y = focalLength * (v.y / v.z) + SCREEN_HEIGHT / 2;
-
-  p.x = x;
-  p.y = y;
+void VertexShader(const vec4& v, ivec2& p) {
+  p.x = focalLength * (v.x / v.z) + SCREEN_WIDTH / 2;
+  p.y = focalLength * (v.y / v.z) + SCREEN_HEIGHT / 2;
 }
 
 /* Place your drawing here */
 void Draw(screen* screen) {
   /* Clear buffer */
+  mat3 rotation;
+  getRotationMatrix(0,0,0,rotation);
+  mat4 transform = TransformationMatrix(cameraPos, rotation);
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
   for( uint32_t i=0; i<triangles.size(); ++i ) {
     vector<vec4> vertices(3);
@@ -70,11 +69,26 @@ void Draw(screen* screen) {
     vertices[2] = triangles[i].v2;
     for(int v=0; v<3; ++v) {
       ivec2 projPos;
-      VertexShader( vertices[v], projPos );
+      vec4 newVert = transform * vertices[v];
+      VertexShader( newVert, projPos );
       vec3 color(1,1,1);
       if (isWithinBounds(projPos)) PutPixelSDL( screen, projPos.x, projPos.y, color );
     }
   }
+}
+
+void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
+	R[0][0] = cos(thetaY) * cos(thetaZ);
+	R[0][1] = -cos(thetaX) * sin(thetaZ) + sin(thetaX) * sin(thetaY) * cos(thetaZ);
+	R[0][2] = sin(thetaX) * sin(thetaZ) + cos(thetaX) * sin(thetaY) * cos(thetaZ);
+
+	R[1][0] = cos(thetaY) * sin(thetaZ);
+	R[1][1] = cos(thetaX) * cos(thetaZ) + sin(thetaX) * sin(thetaY) * sin(thetaZ);
+	R[1][2] = -sin(thetaX) * cos(thetaZ) + cos(thetaX) * sin(thetaY) * sin(thetaZ);
+
+	R[2][0] = -sin(thetaY);
+	R[2][1] = sin(thetaX) * cos(thetaY);
+	R[2][2] = cos(thetaX) * cos(thetaY);
 }
 
 glm::mat4x4 TransformationMatrix(glm::vec4 camPos, glm::mat3x3 rot) {

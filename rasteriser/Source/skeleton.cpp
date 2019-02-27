@@ -4,6 +4,7 @@
 #include "SDLauxiliary.h"
 #include "TestModelH.h"
 #include <stdint.h>
+#include "glm/gtx/string_cast.hpp" // std::cout<<glm::to_string(hello)<<std::endl;
 
 using namespace std;
 using glm::vec3;
@@ -29,8 +30,8 @@ bool Update();
 void Draw(screen* screen);
 void VertexShader( const vec4& v, ivec2& p );
 bool isWithinBounds(ivec2 v);
-glm::mat4x4 TransformationMatrix(glm::vec4 camPos, glm::mat3x3 rot);
-void Interpolate( glm::ivec2 a, glm::ivec2 b, vector<glm::ivec2>& result );
+void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T);
+void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result);
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 
 int main( int argc, char* argv[] ) {
@@ -58,10 +59,16 @@ void VertexShader(const vec4& v, ivec2& p) {
 /* Place your drawing here */
 void Draw(screen* screen) {
   /* Clear buffer */
-  mat3 rotation;
-  getRotationMatrix(0,0,0,rotation);
-  mat4 transform = TransformationMatrix(cameraPos, rotation);
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+
+  mat3 rotation;
+  getRotationMatrix(0, 0, 0, rotation);
+
+  mat4 transform;
+  TransformationMatrix(cameraPos, rotation, transform);
+
+  std::cout<<glm::to_string(transform)<<std::endl;
+
   for( uint32_t i=0; i<triangles.size(); ++i ) {
     vector<vec4> vertices(3);
     vertices[0] = triangles[i].v0;
@@ -70,9 +77,9 @@ void Draw(screen* screen) {
     for(int v=0; v<3; ++v) {
       ivec2 projPos;
       vec4 newVert = transform * vertices[v];
-      VertexShader( newVert, projPos );
-      vec3 color(1,1,1);
-      if (isWithinBounds(projPos)) PutPixelSDL( screen, projPos.x, projPos.y, color );
+      VertexShader(newVert, projPos);
+      vec3 color = vec3(1,1,1);
+      if (isWithinBounds(projPos)) PutPixelSDL(screen, projPos.x, projPos.y, color);
     }
   }
 }
@@ -91,20 +98,13 @@ void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 	R[2][2] = cos(thetaX) * cos(thetaY);
 }
 
-glm::mat4x4 TransformationMatrix(glm::vec4 camPos, glm::mat3x3 rot) {
-  vec4 zeroVec(0,0,0,0);
-  glm::mat4x4 m1(zeroVec, zeroVec, zeroVec, camPos);
-
-  vec4 rot0(rot[0], 0);
-  vec4 rot1(rot[1], 0);
-  vec4 rot2(rot[2], 0);
-
-  glm::mat4x4 m2(rot0, rot1, rot2, vec4(0,0,0,1));
-
-  vec4 minusCamPos(-camPos[0], -camPos[1], -camPos[2], 1);
-  glm::mat4x4 m3(zeroVec, zeroVec, zeroVec, minusCamPos);
-
-  return ((m1 * m2) * m3);
+void TransformationMatrix(vec4 camPos, mat3 rot, mat4&T) {
+  vec4 zeroVec = vec4(0, 0, 0, 0);
+  mat4 m1 = mat4(zeroVec, zeroVec, zeroVec, camPos);
+  mat4 m2 = mat4(rot);
+  mat4 m3 = mat4(zeroVec, zeroVec, zeroVec, -camPos);
+  m3[3][3] = 1;
+  T = m1 * m2 * m3;
 }
 
 bool isWithinBounds(ivec2 v) {

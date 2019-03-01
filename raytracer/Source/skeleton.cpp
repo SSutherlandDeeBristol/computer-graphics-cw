@@ -165,7 +165,7 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
     // -b - h or -b + h
     for(int sign = -1; sign <= 1; sign += 2) {
       // To prevent doing the same sum twice
-      if (!(sign == 1 & h == 0)) {
+      if (!(sign == 1 && h == 0)) {
         float sol = -b + sign * h;
         vec4 position = start + sol * dir;
         float dist = distance(start, position);

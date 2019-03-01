@@ -15,13 +15,16 @@ using glm::ivec2;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 256
+#define SCREEN_WIDTH 600
+#define SCREEN_HEIGHT 600
 #define FULLSCREEN_MODE false
 
 const float focalLength = SCREEN_HEIGHT;
-vec4 cameraPos( 0, 0, -3.001,1 );
+vec4 cameraPos(0, 0, -3.001, 1);
 std::vector<Triangle> triangles;
+
+mat3 rotation;
+mat4 transform;
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -33,6 +36,8 @@ bool isWithinBounds(ivec2 v);
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T);
 void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result);
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
+void DrawLineSDL(screen* surface, ivec2 a, ivec2 b, vec3 colour);
+void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour);
 
 int main( int argc, char* argv[] ) {
 
@@ -61,26 +66,18 @@ void Draw(screen* screen) {
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
-  mat3 rotation;
   getRotationMatrix(0, 0, 0, rotation);
-
-  mat4 transform;
   TransformationMatrix(cameraPos, rotation, transform);
-
-  std::cout<<glm::to_string(transform)<<std::endl;
 
   for( uint32_t i=0; i<triangles.size(); ++i ) {
     vector<vec4> vertices(3);
     vertices[0] = triangles[i].v0;
     vertices[1] = triangles[i].v1;
     vertices[2] = triangles[i].v2;
-    for(int v=0; v<3; ++v) {
-      ivec2 projPos;
-      vec4 newVert = transform * vertices[v];
-      VertexShader(newVert, projPos);
-      vec3 color = vec3(1,1,1);
-      if (isWithinBounds(projPos)) PutPixelSDL(screen, projPos.x, projPos.y, color);
-    }
+
+    vec3 colour = vec3(1, 1, 1);
+
+    DrawPolygonEdges(screen, vertices, colour);
   }
 }
 
@@ -99,28 +96,55 @@ void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 }
 
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4&T) {
-  vec4 zeroVec = vec4(0, 0, 0, 0);
-  mat4 m1 = mat4(zeroVec, zeroVec, zeroVec, camPos);
+  // vec4 zeroVec = vec4(0, 0, 0, 0);
+  // mat4 m1 = mat4(zeroVec, zeroVec, zeroVec, camPos);
   mat4 m2 = mat4(rot);
-  mat4 m3 = mat4(zeroVec, zeroVec, zeroVec, -camPos);
+  mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
   m3[3][3] = 1;
-  T = m1 * m2 * m3;
+  T =  m2 * m3;
 }
 
 bool isWithinBounds(ivec2 v) {
   return v.x > 0 && v.x < SCREEN_WIDTH && v.y > 0 && v.y < SCREEN_HEIGHT;
 }
 
-void Interpolate( glm::ivec2 a, glm::ivec2 b, vector<glm::ivec2>& result ) {
+void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result ) {
   int N = result.size();
-  glm::vec2 step = glm::vec2(b-a) / float(max(N-1,1));
-  glm::vec2 current( a );
+  vec2 step = glm::vec2(b - a) / float(max(N - 1, 1));
+  vec2 current(a);
 
-  for( int i=0; i<N; ++i ) {
+  for (int i = 0; i < N; ++i) {
     result[i] = current;
     current += step;
   }
 }
+
+void DrawLineSDL(screen* screen, ivec2 a, ivec2 b, vec3 colour) {
+  ivec2 delta = glm::abs(a - b);
+  int pixels = glm::max(delta.x, delta.y) + 1;
+  vector<ivec2> line(pixels);
+  Interpolate(a, b, line);
+
+  for (int px = 0; px < pixels; px++) {
+    ivec2 pixel = line[px];
+    if (isWithinBounds(pixel)) PutPixelSDL(screen, pixel.x, pixel.y, colour);
+  }
+}
+
+void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour) {
+  int V = vertices.size();
+  // Transform each vertex from 3D world position to 2D image position:
+  vector<ivec2> projectedVertices(V);
+  for (int i = 0; i < V; ++i) {
+    VertexShader(transform * vertices[i], projectedVertices[i]);
+  }
+  // Loop over all vertices and draw the edge from it to the next vertex:
+  for (int i = 0; i < V; ++i) {
+    int j = (i + 1) % V; // The next vertex
+    DrawLineSDL(screen, projectedVertices[i], projectedVertices[j], colour);
+  }
+}
+
 
 /*Place updates of parameters here*/
 bool Update() {

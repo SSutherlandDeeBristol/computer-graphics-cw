@@ -7,11 +7,12 @@
 #include "glm/gtx/string_cast.hpp" // std::cout<<glm::to_string(hello)<<std::endl;
 
 using namespace std;
-using glm::vec3;
-using glm::mat3;
-using glm::vec4;
-using glm::mat4;
 using glm::ivec2;
+using glm::vec2;
+using glm::vec3;
+using glm::vec4;
+using glm::mat3;
+using glm::mat4;
 
 SDL_Event event;
 
@@ -19,12 +20,16 @@ SDL_Event event;
 #define SCREEN_HEIGHT 600
 #define FULLSCREEN_MODE false
 
-const float focalLength = SCREEN_HEIGHT;
-vec4 cameraPos(0, 0, -3.001, 1);
 std::vector<Triangle> triangles;
 
+const float focalLength = SCREEN_HEIGHT;
+const vec4 defaultCameraPos(0.0, 0.0, -3.001, 1.0);
+
+vec4 cameraPos(0, 0, -3.001, 1.0);
 mat3 rotation;
 mat4 transform;
+float yaw = 0;
+float pitch = 0;
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -66,7 +71,7 @@ void Draw(screen* screen) {
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
-  getRotationMatrix(0, 0, 0, rotation);
+  getRotationMatrix(pitch, yaw, 0, rotation);
   TransformationMatrix(cameraPos, rotation, transform);
 
   for( uint32_t i=0; i<triangles.size(); ++i ) {
@@ -79,29 +84,6 @@ void Draw(screen* screen) {
 
     DrawPolygonEdges(screen, vertices, colour);
   }
-}
-
-void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
-	R[0][0] = cos(thetaY) * cos(thetaZ);
-	R[0][1] = -cos(thetaX) * sin(thetaZ) + sin(thetaX) * sin(thetaY) * cos(thetaZ);
-	R[0][2] = sin(thetaX) * sin(thetaZ) + cos(thetaX) * sin(thetaY) * cos(thetaZ);
-
-	R[1][0] = cos(thetaY) * sin(thetaZ);
-	R[1][1] = cos(thetaX) * cos(thetaZ) + sin(thetaX) * sin(thetaY) * sin(thetaZ);
-	R[1][2] = -sin(thetaX) * cos(thetaZ) + cos(thetaX) * sin(thetaY) * sin(thetaZ);
-
-	R[2][0] = -sin(thetaY);
-	R[2][1] = sin(thetaX) * cos(thetaY);
-	R[2][2] = cos(thetaX) * cos(thetaY);
-}
-
-void TransformationMatrix(vec4 camPos, mat3 rot, mat4&T) {
-  // vec4 zeroVec = vec4(0, 0, 0, 0);
-  // mat4 m1 = mat4(zeroVec, zeroVec, zeroVec, camPos);
-  mat4 m2 = mat4(rot);
-  mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
-  m3[3][3] = 1;
-  T =  m2 * m3;
 }
 
 bool isWithinBounds(ivec2 v) {
@@ -145,8 +127,45 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
   }
 }
 
+void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
+	R[0][0] = cos(thetaY) * cos(thetaZ);
+	R[0][1] = -cos(thetaX) * sin(thetaZ) + sin(thetaX) * sin(thetaY) * cos(thetaZ);
+	R[0][2] = sin(thetaX) * sin(thetaZ) + cos(thetaX) * sin(thetaY) * cos(thetaZ);
 
-/*Place updates of parameters here*/
+	R[1][0] = cos(thetaY) * sin(thetaZ);
+	R[1][1] = cos(thetaX) * cos(thetaZ) + sin(thetaX) * sin(thetaY) * sin(thetaZ);
+	R[1][2] = -sin(thetaX) * cos(thetaZ) + cos(thetaX) * sin(thetaY) * sin(thetaZ);
+
+	R[2][0] = -sin(thetaY);
+	R[2][1] = sin(thetaX) * cos(thetaY);
+	R[2][2] = cos(thetaX) * cos(thetaY);
+}
+
+void TransformationMatrix(vec4 camPos, mat3 rot, mat4&T) {
+  // vec4 zeroVec = vec4(0, 0, 0, 0);
+  // mat4 m1 = mat4(zeroVec, zeroVec, zeroVec, camPos);
+  mat4 m2 = mat4(rot);
+  mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
+  m3[3][3] = 1;
+  T = m2 * m3;
+}
+
+void moveCameraRight(int direction, float distance) {
+	vec4 right(rotation[0][0], rotation[0][1], rotation[0][2], 0);
+	cameraPos += direction * distance * right;
+}
+
+void moveCameraUp(int direction, float distance) {
+	vec4 up(rotation[1][0], rotation[1][1], rotation[1][2], 0);
+	cameraPos += direction * distance * up;
+}
+
+void moveCameraForward(int direction, float distance) {
+	vec4 forward(rotation[2][0], rotation[2][1], rotation[2][2], 0);
+	cameraPos += direction * distance * forward;
+}
+
+/* Place updates of parameters here */
 bool Update() {
   static int t = SDL_GetTicks();
   /* Compute frame time */
@@ -158,27 +177,54 @@ bool Update() {
 
   SDL_Event e;
   while(SDL_PollEvent(&e)) {
-    if (e.type == SDL_QUIT) {
-      return false;
-    } else if (e.type == SDL_KEYDOWN) {
-      int key_code = e.key.keysym.sym;
-      switch(key_code) {
-	      case SDLK_UP:
-          /* Move camera forward */
-          break;
-	      case SDLK_DOWN:
-		      /* Move camera backwards */
-		        break;
-	      case SDLK_LEFT:
-		      /* Move camera left */
-		        break;
-	      case SDLK_RIGHT:
-		      /* Move camera right */
-		        break;
-	      case SDLK_ESCAPE:
-		      /* Move camera quit */
-		        return false;
-	    }
+  if (e.type == SDL_QUIT) {
+    return false;
+  } else if (e.type == SDL_KEYDOWN) {
+    int key_code = e.key.keysym.sym;
+    switch(key_code) {
+      case SDLK_UP:
+        pitch += M_PI / 18;
+        break;
+      case SDLK_DOWN:
+        pitch -= M_PI / 18;
+        break;
+      case SDLK_LEFT:
+        yaw -= M_PI / 18;
+        break;
+      case SDLK_RIGHT:
+        yaw += M_PI / 18;
+        break;
+      case SDLK_r:
+        /* Look-At function, points camera to 0,0,0 */
+        // lookAt(ctw);
+        break;
+      case SDLK_t:
+        // Reset camera position
+        cameraPos = defaultCameraPos;
+        pitch = 0;
+        yaw = 0;
+        break;
+      case SDLK_w:
+        moveCameraUp(-1, 0.25);
+        break;
+      case SDLK_s:
+        moveCameraUp(1, 0.25);
+        break;
+      case SDLK_a:
+        moveCameraRight(-1, 0.25);
+        break;
+      case SDLK_d:
+        moveCameraRight(1, 0.25);
+        break;
+      case SDLK_EQUALS:
+        moveCameraForward(1, 0.25);
+        break;
+      case SDLK_MINUS:
+        moveCameraForward(-1, 0.25);
+        break;
+      case SDLK_ESCAPE:
+        return false;
+      }
     }
   }
 

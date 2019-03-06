@@ -27,7 +27,7 @@ const vec4 defaultCameraPos(0.0, 0.0, -3.001, 1.0);
 
 vec4 cameraPos(0, 0, -3.001, 1.0);
 mat3 rotation;
-mat4 transform;
+mat4 transformMat;
 float yaw = 0;
 float pitch = 0;
 
@@ -43,6 +43,7 @@ void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result);
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void DrawLineSDL(screen* surface, ivec2 a, ivec2 b, vec3 colour);
 void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour);
+void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPixels, vector<ivec2>& rightPixels);
 
 int main( int argc, char* argv[] ) {
 
@@ -50,14 +51,31 @@ int main( int argc, char* argv[] ) {
 
   LoadTestModel(triangles);
 
-  while ( Update() ) {
+  vector<ivec2> vertexPixels(3);
+  vertexPixels[0] = ivec2(10, 5);
+  vertexPixels[1] = ivec2( 5,10);
+  vertexPixels[2] = ivec2(15,15);
+  vector<ivec2> leftPixels(1);
+  vector<ivec2> rightPixels(1);
+  ComputePolygonRows( vertexPixels, leftPixels, rightPixels );
+  for( int row=0; row<leftPixels.size(); ++row )
+  {
+    cout << "Start: ("
+    << leftPixels[row].x << ","
+    << leftPixels[row].y << "). "
+    << "End: ("
+    << rightPixels[row].x << ","
+    << rightPixels[row].y << "). " << endl;
+  }
+
+  /*while ( Update() ) {
     Draw(screen);
     SDL_Renderframe(screen);
   }
 
   SDL_SaveImage( screen, "screenshot.bmp" );
 
-  KillSDL(screen);
+  KillSDL(screen);*/
   return 0;
 }
 
@@ -72,7 +90,7 @@ void Draw(screen* screen) {
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
   getRotationMatrix(pitch, yaw, 0, rotation);
-  TransformationMatrix(cameraPos, rotation, transform);
+  TransformationMatrix(cameraPos, rotation, transformMat);
 
   for( uint32_t i=0; i<triangles.size(); ++i ) {
     vector<vec4> vertices(3);
@@ -118,12 +136,65 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
   // Transform each vertex from 3D world position to 2D image position:
   vector<ivec2> projectedVertices(V);
   for (int i = 0; i < V; ++i) {
-    VertexShader(transform * vertices[i], projectedVertices[i]);
+    VertexShader(transformMat * vertices[i], projectedVertices[i]);
   }
   // Loop over all vertices and draw the edge from it to the next vertex:
   for (int i = 0; i < V; ++i) {
     int j = (i + 1) % V; // The next vertex
     DrawLineSDL(screen, projectedVertices[i], projectedVertices[j], colour);
+  }
+}
+
+void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPixels, vector<ivec2>& rightPixels) {
+  // 1. Find max and min y-value of the polygon
+  //    and compute the number of rows it occupies.
+  float maxY = -numeric_limits<float>::max();
+  float minY = numeric_limits<float>::max();
+  float diffY;
+
+  for (int i = 0; i < vertexPixels.size(); i++) {
+    if (vertexPixels[i].y >= maxY) maxY = vertexPixels[i].y;
+    if (vertexPixels[i].y <= minY) minY = vertexPixels[i].y;
+  }
+
+  diffY = maxY - minY + 1;
+  cout << diffY << endl;
+
+  // 2. Resize leftPixels and rightPixels
+  //    so that they have an element for each row.
+  leftPixels.resize(diffY);
+  rightPixels.resize(diffY);
+
+  // 3. Initialize the x-coordinates in leftPixels
+  //    to some really large value and the x-coordinates
+  //    in rightPixels to some really small value.
+  for (int i = 0; i < leftPixels.size(); i++) {
+    leftPixels[i].x = numeric_limits<int>::max();
+    leftPixels[i].y = i + minY;
+    rightPixels[i].x = -numeric_limits<int>::max();
+    rightPixels[i].y = i + minY;
+  }
+
+  // 4. Loop through all edges of the polygon and use
+  //    linear interpolation to find the x-coordinate for
+  //    each row it occupies. Update the corresponding
+  //    values in rightPixels and leftPixels.
+  for (int i = 0; i < vertexPixels.size(); i++) {
+    vector<ivec2> pixels(diffY);
+
+    if (i == 0) {
+      Interpolate(vertexPixels[i], vertexPixels[vertexPixels.size() - 1], pixels);
+    } else {
+      Interpolate(vertexPixels[i-1], vertexPixels[i], pixels);
+    }
+
+    for (int j = 0; j < pixels.size(); j++) {
+      int yindex = pixels[j].y - minY;
+      int xval = pixels[j].x;
+
+      if (xval <= leftPixels[yindex].x) leftPixels[yindex].x = xval;
+      if (xval >= rightPixels[yindex].x) rightPixels[yindex].x = xval;
+    }
   }
 }
 
@@ -173,7 +244,7 @@ bool Update() {
   float dt = float(t2-t);
   t = t2;
 
-  std::cout << "Render time: " << dt << " ms." << std::endl;
+  //std::cout << "Render time: " << dt << " ms." << std::endl;
 
   SDL_Event e;
   while(SDL_PollEvent(&e)) {

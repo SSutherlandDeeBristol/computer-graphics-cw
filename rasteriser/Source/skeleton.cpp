@@ -101,9 +101,7 @@ void Draw(screen* screen) {
     vertices[1] = triangles[i].v1;
     vertices[2] = triangles[i].v2;
 
-    //currentColor = vec3(((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)));
     currentColor = triangles[i].color;
-    printf("currentColor = (%f,%f,%f)\n", currentColor.x, currentColor.y, currentColor.z);
     DrawPolygon(screen, vertices);
 
     //vec3 colour = vec3(1, 1, 1);
@@ -156,7 +154,7 @@ void DrawPolygon(screen* screen, const vector<vec4>& vertices) {
   int V = vertices.size();
   vector<ivec2> vertexPixels(V);
 
-  for(int i=0; i<V; ++i) VertexShader(vertices[i], vertexPixels[i]);
+  for(int i=0; i<V; ++i) VertexShader(transformMat * vertices[i], vertexPixels[i]);
 
   vector<ivec2> leftPixels;
   vector<ivec2> rightPixels;

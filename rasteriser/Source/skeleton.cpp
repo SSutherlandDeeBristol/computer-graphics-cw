@@ -43,6 +43,9 @@ void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result);
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void DrawLineSDL(screen* surface, ivec2 a, ivec2 b, vec3 colour);
 void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour);
+void moveCameraForward(int direction, float distance);
+void moveCameraUp(int direction, float distance);
+void moveCameraRight(int direction, float distance);
 
 int main( int argc, char* argv[] ) {
 

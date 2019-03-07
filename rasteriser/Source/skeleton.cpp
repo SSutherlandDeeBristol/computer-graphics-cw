@@ -102,10 +102,10 @@ void Draw(screen* screen) {
     vertices[2] = triangles[i].v2;
 
     currentColor = triangles[i].color;
-    DrawPolygon(screen, vertices);
+    //DrawPolygon(screen, vertices);
 
-    //vec3 colour = vec3(1, 1, 1);
-    //DrawPolygonEdges(screen, vertices, colour);
+    vec3 colour = vec3(1, 1, 1);
+    DrawPolygonEdges(screen, vertices, colour);
   }
 }
 
@@ -220,10 +220,11 @@ void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPi
 
 void DrawPolygonRows(screen* screen, const vector<ivec2>& leftPixels, const vector<ivec2>& rightPixels) {
   for (int i = 0; i < leftPixels.size(); i++) {
-    for(int j = leftPixels[i].x; j <= rightPixels[i].x; j++) {
-      ivec2 pixel(j, leftPixels[i].y);
-      if (isWithinBounds(pixel)) PutPixelSDL(screen, pixel.x, pixel.y, currentColor);
-    }
+    DrawLineSDL(screen, leftPixels[i], rightPixels[i], currentColor);
+    //for(int j = leftPixels[i].x; j <= rightPixels[i].x; j++) {
+      //ivec2 pixel(j, leftPixels[i].y);
+      //if (isWithinBounds(pixel)) PutPixelSDL(screen, pixel.x, pixel.y, currentColor);
+    //}
   }
 }
 
@@ -277,55 +278,55 @@ bool Update() {
 
   SDL_Event e;
   while(SDL_PollEvent(&e)) {
-  if (e.type == SDL_QUIT) {
-    return false;
-  } else if (e.type == SDL_KEYDOWN) {
-    int key_code = e.key.keysym.sym;
-    switch(key_code) {
-      case SDLK_UP:
-        pitch += M_PI / 18;
-        break;
-      case SDLK_DOWN:
-        pitch -= M_PI / 18;
-        break;
-      case SDLK_LEFT:
-        yaw -= M_PI / 18;
-        break;
-      case SDLK_RIGHT:
-        yaw += M_PI / 18;
-        break;
-      case SDLK_r:
-        /* Look-At function, points camera to 0,0,0 */
-        // lookAt(ctw);
-        break;
-      case SDLK_t:
-        // Reset camera position
-        cameraPos = defaultCameraPos;
-        pitch = 0;
-        yaw = 0;
-        break;
-      case SDLK_w:
-        moveCameraUp(-1, 0.25);
-        break;
-      case SDLK_s:
-        moveCameraUp(1, 0.25);
-        break;
-      case SDLK_a:
-        moveCameraRight(-1, 0.25);
-        break;
-      case SDLK_d:
-        moveCameraRight(1, 0.25);
-        break;
-      case SDLK_EQUALS:
-        moveCameraForward(1, 0.25);
-        break;
-      case SDLK_MINUS:
-        moveCameraForward(-1, 0.25);
-        break;
-      case SDLK_ESCAPE:
-        return false;
+    if (e.type == SDL_QUIT) {
+      return false;
+    } else if (e.type == SDL_KEYDOWN) {
+      int key_code = e.key.keysym.sym;
+      switch(key_code) {
+        case SDLK_UP:
+          pitch += M_PI / 18;
+          break;
+        case SDLK_DOWN:
+          pitch -= M_PI / 18;
+          break;
+        case SDLK_LEFT:
+          yaw -= M_PI / 18;
+          break;
+        case SDLK_RIGHT:
+          yaw += M_PI / 18;
+          break;
+        case SDLK_r:
+          /* Look-At function, points camera to 0,0,0 */
+          // lookAt(ctw);
+          break;
+        case SDLK_t:
+          // Reset camera position
+          cameraPos = defaultCameraPos;
+          pitch = 0;
+          yaw = 0;
+          break;
+        case SDLK_w:
+          moveCameraUp(-1, 0.25);
+          break;
+        case SDLK_s:
+          moveCameraUp(1, 0.25);
+          break;
+        case SDLK_a:
+          moveCameraRight(-1, 0.25);
+          break;
+        case SDLK_d:
+          moveCameraRight(1, 0.25);
+          break;
+        case SDLK_EQUALS:
+          moveCameraForward(1, 0.25);
+          break;
+        case SDLK_MINUS:
+          moveCameraForward(-1, 0.25);
+          break;
+        case SDLK_ESCAPE:
+          return false;
+        }
       }
-    }
   }
 
   return true;

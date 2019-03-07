@@ -102,10 +102,10 @@ void Draw(screen* screen) {
     vertices[2] = triangles[i].v2;
 
     currentColor = triangles[i].color;
-    //DrawPolygon(screen, vertices);
+    DrawPolygon(screen, vertices);
 
     vec3 colour = vec3(1, 1, 1);
-    DrawPolygonEdges(screen, vertices, colour);
+    //DrawPolygonEdges(screen, vertices, colour);
   }
 }
 

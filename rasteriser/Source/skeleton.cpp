@@ -55,28 +55,28 @@ int main( int argc, char* argv[] ) {
 
   LoadTestModel(triangles);
 
-  vector<ivec2> vertexPixels(3);
-  vertexPixels[0] = ivec2(10, 5);
-  vertexPixels[1] = ivec2( 5,10);
-  vertexPixels[2] = ivec2(15,15);
-  vector<ivec2> leftPixels;
-  vector<ivec2> rightPixels;
-  ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
-  for(int row=0; row<leftPixels.size(); ++row) {
-     cout << "Start: ("
-          << leftPixels[row].x << ","
-          << leftPixels[row].y << "). "
-          << "End: ("
-          << rightPixels[row].x << ","
-          << rightPixels[row].y << "). " << endl;
-  }
+  // vector<ivec2> vertexPixels(3);
+  // vertexPixels[0] = ivec2(10, 5);
+  // vertexPixels[1] = ivec2( 5,10);
+  // vertexPixels[2] = ivec2(15,15);
+  // vector<ivec2> leftPixels(1);
+  // vector<ivec2> rightPixels(1);
+  // ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
+  // for(int row=0; row<leftPixels.size(); ++row) {
+  //    cout << "Start: ("
+  //         << leftPixels[row].x << ","
+  //         << leftPixels[row].y << "). "
+  //         << "End: ("
+  //         << rightPixels[row].x << ","
+  //         << rightPixels[row].y << "). " << endl;
+  // }
 
-  /*while ( Update() ) {
+  while ( Update() ) {
     Draw(screen);
     SDL_Renderframe(screen);
   }
 
-  SDL_SaveImage( screen, "screenshot.bmp" );*/
+  SDL_SaveImage( screen, "screenshot.bmp" );
 
   KillSDL(screen);
   return 0;
@@ -101,7 +101,9 @@ void Draw(screen* screen) {
     vertices[1] = triangles[i].v1;
     vertices[2] = triangles[i].v2;
 
-    currentColor = vec3(((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX))); //triangles[i].color;
+    //currentColor = vec3(((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)));
+    currentColor = triangles[i].color;
+    printf("currentColor = (%f,%f,%f)\n", currentColor.x, currentColor.y, currentColor.z);
     DrawPolygon(screen, vertices);
 
     //vec3 colour = vec3(1, 1, 1);
@@ -204,7 +206,7 @@ void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPi
 
     int lineLength = (deltaX > deltaY) ? deltaX : deltaY;
 
-    vector<ivec2> pixels(lineLength);
+    vector<ivec2> pixels(lineLength + 1);
 
     Interpolate(vertexPixels[i], vertexPixels[nextVertex], pixels);
 

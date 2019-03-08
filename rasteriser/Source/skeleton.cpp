@@ -160,7 +160,15 @@ void DrawPolygon(screen* screen, const vector<vec4>& vertices) {
   vector<ivec2> rightPixels;
 
   ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
-  DrawPolygonRows(screen, leftPixels, rightPixels);
+  //DrawPolygonRows(screen, leftPixels, rightPixels);
+  for (int i = 0; i < leftPixels.size(); i++) {
+    //DrawLineSDL(screen, leftPixels[i], rightPixels[i], currentColor);
+    for(int j = leftPixels[i].x; j <= rightPixels[i].x; j++) {
+      ivec2 pixel(j, leftPixels[i].y);
+
+      if (isWithinBounds(pixel)) PutPixelSDL(screen, pixel.x, pixel.y, currentColor);
+    }
+  }
 }
 
 void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPixels, vector<ivec2>& rightPixels) {
@@ -220,11 +228,12 @@ void ComputePolygonRows(const vector<ivec2>& vertexPixels, vector<ivec2>& leftPi
 
 void DrawPolygonRows(screen* screen, const vector<ivec2>& leftPixels, const vector<ivec2>& rightPixels) {
   for (int i = 0; i < leftPixels.size(); i++) {
-    DrawLineSDL(screen, leftPixels[i], rightPixels[i], currentColor);
-    //for(int j = leftPixels[i].x; j <= rightPixels[i].x; j++) {
-      //ivec2 pixel(j, leftPixels[i].y);
-      //if (isWithinBounds(pixel)) PutPixelSDL(screen, pixel.x, pixel.y, currentColor);
-    //}
+    //DrawLineSDL(screen, leftPixels[i], rightPixels[i], currentColor);
+    for(int j = leftPixels[i].x; j <= rightPixels[i].x; j++) {
+      ivec2 pixel(j, leftPixels[i].y);
+
+      if (isWithinBounds(pixel)) PutPixelSDL(screen, pixel.x, pixel.y, currentColor);
+    }
   }
 }
 

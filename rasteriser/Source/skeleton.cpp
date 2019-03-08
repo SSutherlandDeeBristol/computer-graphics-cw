@@ -119,7 +119,7 @@ void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result ) {
   vec2 current(a);
 
   for (int i = 0; i < N; ++i) {
-    result[i] = current;
+    result[i] = round(current);
     current += step;
   }
 }

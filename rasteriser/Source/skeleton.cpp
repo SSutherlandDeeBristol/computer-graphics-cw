@@ -73,6 +73,9 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
 void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels);
 void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels);
 void DrawPolygon(screen* screen, const vector<Vertex>& vertices);
+void moveCameraForward(int direction, float distance);
+void moveCameraUp(int direction, float distance);
+void moveCameraRight(int direction, float distance);
 
 int main( int argc, char* argv[] ) {
 

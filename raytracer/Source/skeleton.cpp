@@ -16,8 +16,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 300
-#define SCREEN_HEIGHT 300
+#define SCREEN_WIDTH 500
+#define SCREEN_HEIGHT 500
 #define FULLSCREEN_MODE false
 
 enum type {triangle, sphere};
@@ -96,24 +96,20 @@ void Draw(screen* screen) {
 				switch(intersection.type) {
           case triangle :
             colour = triangles[intersection.index].material.color;
-
-            //light = triangles[intersection.index].material.ambientRef * indirectLight;
             break;
           case sphere :
             colour = spheres[intersection.index].material.color;
-
-            //light = spheres[intersection.index].material.ambientRef * indirectLight;
             break;
           default :
             break;
         }
 
         for (int i = 0; i < lights.size(); i++) {
-          //light += computeLight(intersection, lights[i]);
-          light += DirectLight(intersection, lights[i]);
+          light += computeLight(intersection, lights[i]);
+          //light += DirectLight(intersection, lights[i]);
         }
 
-				light = colour * light;
+				light = colour * (light + indirectLight);
       }
 
       PutPixelSDL(screen, x, y, light);
@@ -216,9 +212,11 @@ vec3 computeLight( const Intersection &i, const Light &l ) {
 
   float id = l.diffuseIntensity;
   float is = l.specularIntensity;
+  float ia = l.ambientIntensity;
 
   float kd;
   float ks;
+  float ka;
   float alpha;
 
   vec4 normal;
@@ -227,36 +225,71 @@ vec3 computeLight( const Intersection &i, const Light &l ) {
   if (i.type == triangle) {
     Triangle triangle = triangles[i.index];
 
+    ka = triangle.material.ambientRef;
+
+    //light += ka * (ia * l.color);
+
     kd = triangle.material.diffuseRef;
 
     normal = normalize(triangle.normal);
 
-    light += kd * dot(Lm, normal) * id;
+    float LmNormalDot = dot(Lm, normal);
 
     ks = triangle.material.specularRef;
 
-    Rm = normalize(2 * dot(Lm, normal) * normal - Lm);
+    Rm = normalize(2 * LmNormalDot * normal - Lm);
 
     alpha = triangle.material.shininess;
 
-    light += ks * pow(dot(Rm, V), alpha) * is;
+    float RmVDot = dot(Rm, V);
 
+    if (LmNormalDot >= 0) {
+      light += kd * LmNormalDot * (id * l.color);
+
+      if (RmVDot >= 0) {
+        light += ks * pow(RmVDot, alpha) * (is * l.color);
+      }
+    }
   } else if (i.type == sphere) {
     Sphere sphere = spheres[i.index];
+
+    ka = sphere.material.ambientRef;
+
+    //light += ka * (ia * l.color);
 
     kd = sphere.material.diffuseRef;
 
     normal = normalize(i.position - sphere.centre);
 
-    light += kd * dot(Lm, normal) * id;
+    float LmNormalDot = dot(Lm, normal);
 
     ks = sphere.material.specularRef;
 
-    Rm = normalize(2 * dot(Lm, normal) * normal - Lm);
+    Rm = normalize(2 * LmNormalDot * normal - Lm);
 
     alpha = sphere.material.shininess;
 
-    light += ks * pow(dot(Rm, V), alpha) * is;
+    float RmVDot = dot(Rm, V);
+
+    if (LmNormalDot >= 0) {
+      light += kd * LmNormalDot * (id * l.color);
+
+      if (RmVDot >= 0) {
+        light += ks * pow(RmVDot, alpha) * (is * l.color);
+      }
+    }
+  }
+
+  Intersection intersection;
+
+  vec4 lightDir = l.position - i.position;
+  vec4 rHat = normalize(lightDir);
+  float r = distance(i.position, l.position);
+
+  if (ClosestIntersection(i.position, rHat, triangles, spheres, intersection)) {
+    if (intersection.index != i.index && intersection.distance < r) {
+      light = ka * (ia * l.color);
+    }
   }
 
   return light;

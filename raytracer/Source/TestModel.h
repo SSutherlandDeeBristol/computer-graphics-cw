@@ -19,7 +19,7 @@ struct Light {
 	float ambientIntensity;
 	float diffuseIntensity;
 	float specularIntensity;
-  Light(const glm::vec4 &p, const glm::vec3 &c, const float &am, const float &di, const float &sp)
+  Light(const vec4 &p, const vec3 &c, const float &am, const float &di, const float &sp)
 		: position(p), color(c), ambientIntensity(am), diffuseIntensity(di), specularIntensity(sp) {
 
 	}
@@ -96,24 +96,23 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	vec3 purple( 0.75f, 0.15f, 0.75f );
 	vec3 white(  0.75f, 0.75f, 0.75f );
 
-	Material matteRed(red, 2, 2, 2, 1);
-	Material matteYellow(yellow, 2, 2, 2, 1);
-	Material matteGreen(green, 2, 2, 2, 1);
-	Material matteCyan(cyan, 2, 2, 2, 1);
-	Material matteBlue(blue, 2, 2, 2, 1);
-	Material mattePurple(purple, 2, 2, 2, 1);
-	Material matteWhite(white, 2, 2, 2, 1);
+  vec3 darkPurple(0.65f, 0.1f, 0.65f);
 
-	Material shinyPurple(purple, 2, 2, 3, 3);
+	Material matteRed(red, 1, 2, 2, 1);
+	Material matteYellow(yellow, 1, 2, 2, 1);
+	Material matteGreen(green, 1, 2, 2, 1);
+	Material matteCyan(cyan, 1, 2, 2, 1);
+	Material matteBlue(blue, 1, 2, 2, 1);
+	Material mattePurple(purple, 1, 2, 2, 1);
+	Material matteWhite(white, 1, 2, 2, 1);
+
+	Material shinyPurple(darkPurple, 1.2, 2, 3, 50);
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
 
 	spheres.clear();
 	spheres.reserve(1);
-
-	triangles.clear();
-	triangles.reserve( 5*2*3 );
 
 	lights.clear();
 	lights.reserve(1);
@@ -225,16 +224,15 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	// Spheres
 	// ---------------------------------------------------------------------------
 
-	spheres.push_back( Sphere(vec4(0,0.2,0,1), 0.3, shinyPurple) );
+	spheres.push_back( Sphere(vec4(0.4,0,-0.2,1), 0.3, shinyPurple) );
 
 	// ---------------------------------------------------------------------------
 	// Lights
 	// ---------------------------------------------------------------------------
 
-	lights.push_back( Light(vec4(0.7,-0.5,-0.7,1.0), vec3(1,1,1), 5, 3, 4 ));
-	lights.push_back( Light(vec4(-0.7,-0.5,-0.7,1.0), vec3(1,1,1), 5, 3, 4 ));
-
-	lights.push_back( Light(vec4(0.0,-0.5,-0.7,1.0), vec3(1,1,1), 5, 3, 4 ));
+	//lights.push_back( Light(vec4(0.5,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
+	//lights.push_back( Light(vec4(-0.5,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
+	lights.push_back( Light(vec4(0.0,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3

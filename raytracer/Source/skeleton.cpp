@@ -20,13 +20,13 @@ SDL_Event event;
 #define SCREEN_HEIGHT 500
 #define FULLSCREEN_MODE false
 
-enum type {triangle, sphere};
+enum geometry {triangle, sphere};
 
 struct Intersection {
   vec4 position;
   float distance;
   int index;
-  type type;
+  geometry intersectionType;
 };
 
 const float focalLength = SCREEN_HEIGHT;
@@ -93,7 +93,7 @@ void Draw(screen* screen) {
 			vec3 colour(0.0, 0.0, 0.0); // The original colour of the triangle
 
       if (ClosestIntersection(cameraPos, d, triangles, spheres, intersection)) {
-				switch(intersection.type) {
+				switch(intersection.intersectionType) {
           case triangle :
             colour = triangles[intersection.index].material.color;
             break;
@@ -104,7 +104,7 @@ void Draw(screen* screen) {
             break;
         }
 
-        for (int i = 0; i < lights.size(); i++) {
+        for (std::vector<Light>::size_type i = 0; i < lights.size(); i++) {
           light += computeLight(intersection, lights[i]);
           //light += DirectLight(intersection, lights[i]);
         }
@@ -156,7 +156,7 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
 					closestIntersection.distance = dist;
 					closestIntersection.position = position;
 					closestIntersection.index = i;
-          closestIntersection.type = triangle;
+          closestIntersection.intersectionType = triangle;
 				}
 			}
     }
@@ -194,7 +194,7 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
           closestIntersection.distance = dist;
           closestIntersection.position = position;
           closestIntersection.index = i;
-          closestIntersection.type = sphere;
+          closestIntersection.intersectionType = sphere;
         }
       }
     }
@@ -214,15 +214,15 @@ vec3 computeLight( const Intersection &i, const Light &l ) {
   float is = l.specularIntensity;
   float ia = l.ambientIntensity;
 
-  float kd;
-  float ks;
-  float ka;
+  float kd = 1;
+  float ks = 1;
+  float ka = 1;
   float alpha;
 
   vec4 normal;
   vec4 Rm;
 
-  if (i.type == triangle) {
+  if (i.intersectionType == triangle) {
     Triangle triangle = triangles[i.index];
 
     ka = triangle.material.ambientRef;
@@ -250,7 +250,7 @@ vec3 computeLight( const Intersection &i, const Light &l ) {
         light += ks * pow(RmVDot, alpha) * (is * l.color);
       }
     }
-  } else if (i.type == sphere) {
+  } else if (i.intersectionType == sphere) {
     Sphere sphere = spheres[i.index];
 
     ka = sphere.material.ambientRef;
@@ -301,7 +301,7 @@ vec3 DirectLight( const Intersection &i, const Light &l ) {
   vec3 color = vec3(1,1,1);
   vec3 black = vec3(0.0,0.0,0.0);
 
-  switch (i.type) {
+  switch (i.intersectionType) {
     case triangle: {
       Triangle triangle = triangles[i.index];
 

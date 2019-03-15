@@ -289,6 +289,8 @@ vec3 computeLight( const Intersection &i, const Light &l ) {
   if (ClosestIntersection(i.position, rHat, triangles, spheres, intersection)) {
     if (intersection.index != i.index && intersection.distance < r) {
       light = ka * (ia * l.color);
+    } else {
+      light = light ;
     }
   }
 

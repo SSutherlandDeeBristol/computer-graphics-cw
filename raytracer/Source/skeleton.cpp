@@ -1,4 +1,7 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <glm/glm.hpp>
 #include <SDL.h>
 #include "SDLauxiliary.h"
@@ -6,6 +9,8 @@
 #include <stdint.h>
 #include "limits"
 #include <math.h>
+#include <unistd.h>
+#include "glm/gtx/string_cast.hpp" // std::cout<<glm::to_string(hello)<<std::endl;
 
 using namespace std;
 using glm::vec3;
@@ -16,8 +21,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 300
-#define SCREEN_HEIGHT 300
+#define SCREEN_WIDTH 500
+#define SCREEN_HEIGHT 500
 #define FULLSCREEN_MODE false
 
 struct Intersection {
@@ -56,10 +61,13 @@ void moveCameraRight(int direction);
 void moveCameraUp(int direction);
 void moveCameraForward(int direction);
 void lookAt(mat4& ctw);
+void readBunny(std::vector<Triangle>& triangles);
 
 int main(int argc, char* argv[]) {
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+
   LoadTestModel(triangles, spheres);
+	readBunny(triangles);
 
   while (Update()) {
     Draw(screen);
@@ -379,4 +387,63 @@ bool Update() {
     }
   }
   return true;
+}
+
+void readBunny(std::vector<Triangle>& triangles) {
+	std::ifstream infile("Resources/bunny.obj");
+	std::string line;
+
+	vec3 white(  0.75f, 0.75f, 0.75f );
+
+	/* Vector to store all vertices */
+	vector<vec4> vs;
+
+	while (std::getline(infile, line)) {
+
+		/* Try parse line */
+		std::istringstream iss(line);
+		string code;
+		float a, b, c;
+		if (!(iss >> code >> a >> b >> c)) {
+			cout << "Could not read file" << endl;
+			break;
+		}
+
+		cout << code << ", " + to_string(a) << ", " + to_string(b) << ", " + to_string(c) << endl;
+
+		if (code.compare("v") == 0) {
+			/* Then this is a vertex definition */
+			vec4 vertex = vec4(a, b, c, 1.0);
+			vs.push_back(vertex);
+		} else {
+			/* This is a face definition */
+			Triangle triangle = Triangle(vs[a-1], vs[b-1], vs[c-1], white);
+			float L = 0.5;
+			triangle.v0 *= 2/L;
+			triangle.v1 *= 2/L;
+			triangle.v2 *= 2/L;
+
+			triangle.v0 -= vec4(0,0.5,0.5,1);
+			triangle.v1 -= vec4(0,0.5,0.5,1);
+			triangle.v2 -= vec4(0,0.5,0.5,1);
+
+			triangle.v0.x *= -1;
+			triangle.v1.x *= -1;
+			triangle.v2.x *= -1;
+
+			triangle.v0.y *= -1;
+			triangle.v1.y *= -1;
+			triangle.v2.y *= -1;
+
+			triangle.v0.w = 1.0;
+			triangle.v1.w = 1.0;
+			triangle.v2.w = 1.0;
+
+			triangle.ComputeNormal();
+			triangle.ReverseNormal();
+			triangles.push_back(triangle);
+		}
+
+	}
+
 }

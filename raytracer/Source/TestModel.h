@@ -21,6 +21,11 @@ public:
 		ComputeNormal();
 	}
 
+	void ReverseNormal()
+	{
+		normal *= glm::vec4(-1,-1,-1,1);
+	}
+
 	void ComputeNormal()
 	{
 	  glm::vec3 e1 = glm::vec3(v1.x-v0.x,v1.y-v0.y,v1.z-v0.z);
@@ -172,7 +177,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	triangles.push_back( Triangle(G,F,E,blue) );
 	triangles.push_back( Triangle(G,H,F,blue) );
 
-	spheres.push_back( Sphere(vec4(0,0,0,1),0.3,purple) );
+	// spheres.push_back( Sphere(vec4(0,0,0,1),0.3,purple) );
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3

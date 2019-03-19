@@ -232,7 +232,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 
 	//lights.push_back( Light(vec4(0.5,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
 	//lights.push_back( Light(vec4(-0.5,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
-	lights.push_back( Light(vec4(0.0,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
+	lights.push_back( Light(vec4(0.0,-0.5,-0.9,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3

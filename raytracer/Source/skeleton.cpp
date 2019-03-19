@@ -210,6 +210,8 @@ vec3 computeLight( const Intersection &i, const Light &l ) {
   vec4 Lm = normalize(l.position - i.position);
   vec4 V = normalize(cameraPos - i.position);
 
+  float dist = distance(l.position, i.position);
+
   float id = l.diffuseIntensity;
   float is = l.specularIntensity;
   float ia = l.ambientIntensity;
@@ -222,32 +224,35 @@ vec3 computeLight( const Intersection &i, const Light &l ) {
   vec4 normal;
   vec4 Rm;
 
+  float LmNormalDot;
+  float RmVDot;
+
   if (i.intersectionType == triangle) {
     Triangle triangle = triangles[i.index];
 
     ka = triangle.material.ambientRef;
 
-    //light += ka * (ia * l.color);
+    light += ka * (ia * l.color);
 
     kd = triangle.material.diffuseRef;
 
     normal = normalize(triangle.normal);
 
-    float LmNormalDot = dot(Lm, normal);
+    LmNormalDot = dot(Lm, normal);
 
     ks = triangle.material.specularRef;
 
-    Rm = normalize(2 * LmNormalDot * normal - Lm);
+    Rm = normalize(2 * max(0.0f, LmNormalDot) * normal - Lm);
 
     alpha = triangle.material.shininess;
 
-    float RmVDot = dot(Rm, V);
+    RmVDot = dot(Rm, V);
 
-    if (LmNormalDot >= 0) {
-      light += kd * LmNormalDot * (id * l.color);
+    if (LmNormalDot > 0) {
+      light += (kd * LmNormalDot * (id * l.color)) / dist;
 
-      if (RmVDot >= 0) {
-        light += ks * pow(RmVDot, alpha) * (is * l.color);
+      if (RmVDot > 0) {
+        light += (ks * pow(RmVDot, alpha) * (is * l.color)) / dist;
       }
     }
   } else if (i.intersectionType == sphere) {
@@ -255,27 +260,27 @@ vec3 computeLight( const Intersection &i, const Light &l ) {
 
     ka = sphere.material.ambientRef;
 
-    //light += ka * (ia * l.color);
+    light += ka * (ia * l.color);
 
     kd = sphere.material.diffuseRef;
 
     normal = normalize(i.position - sphere.centre);
 
-    float LmNormalDot = dot(Lm, normal);
+    LmNormalDot = dot(Lm, normal);
 
     ks = sphere.material.specularRef;
 
-    Rm = normalize(2 * LmNormalDot * normal - Lm);
+    Rm = normalize(2 * max(0.0f, LmNormalDot) * normal - Lm);
 
     alpha = sphere.material.shininess;
 
-    float RmVDot = dot(Rm, V);
+    RmVDot = dot(Rm, V);
 
-    if (LmNormalDot >= 0) {
-      light += kd * LmNormalDot * (id * l.color);
+    if (LmNormalDot > 0) {
+      light += (kd * max(0.0f, LmNormalDot) * (id * l.color)) / dist;
 
-      if (RmVDot >= 0) {
-        light += ks * pow(RmVDot, alpha) * (is * l.color);
+      if (RmVDot > 0) {
+        light += (ks * pow(RmVDot, alpha) * (is * l.color)) / dist;
       }
     }
   }
@@ -289,8 +294,6 @@ vec3 computeLight( const Intersection &i, const Light &l ) {
   if (ClosestIntersection(i.position, rHat, triangles, spheres, intersection)) {
     if (intersection.index != i.index && intersection.distance < r) {
       light = ka * (ia * l.color);
-    } else {
-      light = light ;
     }
   }
 

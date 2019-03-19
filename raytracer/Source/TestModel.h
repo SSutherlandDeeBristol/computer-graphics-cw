@@ -98,15 +98,15 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 
   vec3 darkPurple(0.65f, 0.1f, 0.65f);
 
-	Material matteRed(red, 1, 2, 2, 1);
-	Material matteYellow(yellow, 1, 2, 2, 1);
-	Material matteGreen(green, 1, 2, 2, 1);
-	Material matteCyan(cyan, 1, 2, 2, 1);
-	Material matteBlue(blue, 1, 2, 2, 1);
-	Material mattePurple(purple, 1, 2, 2, 1);
+	Material matteRed(red, 1, 2, 1, 1);
+	Material matteYellow(yellow, 1, 2, 1, 1);
+	Material matteGreen(green, 1, 2, 1, 1);
+	Material matteCyan(cyan, 1, 2, 1, 1);
+	Material matteBlue(blue, 1, 2, 1, 1);
+	Material mattePurple(purple, 1, 2, 1, 1);
 	Material matteWhite(white, 1, 2, 2, 1);
 
-	Material shinyPurple(darkPurple, 1.2, 2, 3, 50);
+	Material shinyPurple(darkPurple, 1.2, 3, 4, 7);
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );

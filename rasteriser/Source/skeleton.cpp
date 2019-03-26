@@ -73,6 +73,7 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
 void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels);
 void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels);
 void DrawPolygon(screen* screen, const vector<Vertex>& vertices);
+void updateRotation();
 void moveCameraForward(int direction, float distance);
 void moveCameraUp(int direction, float distance);
 void moveCameraRight(int direction, float distance);
@@ -143,15 +144,17 @@ void Draw(screen* screen) {
       depthBuffer[y][x] = 0;
 
   for( uint32_t i=0; i<triangles.size(); ++i ) {
-    vector<Vertex> vertices(3);
-    vertices[0].position = triangles[i].v0;
-    vertices[1].position = triangles[i].v1;
-    vertices[2].position = triangles[i].v2;
+    if (dot(transformMat * cameraPos, triangles[i].normal) > 0) {
+      vector<Vertex> vertices(3);
+      vertices[0].position = triangles[i].v0;
+      vertices[1].position = triangles[i].v1;
+      vertices[2].position = triangles[i].v2;
 
-    currentColor = triangles[i].color;
-    currentNormal = triangles[i].normal;
-    currentReflectance = vec3(1.2,1.2,1.2);
-    DrawPolygon(screen, vertices);
+      currentColor = triangles[i].color;
+      currentNormal = triangles[i].normal;
+      currentReflectance = vec3(1.2,1.2,1.2);
+      DrawPolygon(screen, vertices);
+    }
   }
 }
 
@@ -191,8 +194,7 @@ void Interpolate(Pixel a, Pixel b, vector<Pixel>& result ) {
     result[i].x = round(currentX);
     result[i].y = round(currentY);
     result[i].zinv = currentZInv;
-    vec4 pos = currentPos;
-    result[i].pos3d = vec4(pos.x / currentZInv, pos.y / currentZInv, pos.z / currentZInv, 1);
+    result[i].pos3d = vec4(currentPos.x / currentZInv, currentPos.y / currentZInv, currentPos.z / currentZInv, 1);
     currentX += stepX;
     currentY += stepY;
     currentZInv += stepZInv;
@@ -319,12 +321,21 @@ void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 }
 
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4&T) {
-  // vec4 zeroVec = vec4(0, 0, 0, 0);
-  // mat4 m1 = mat4(zeroVec, zeroVec, zeroVec, camPos);
+  //mat4 m1 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), camPos);
+  //m1[3][3] = 1;
+
   mat4 m2 = mat4(rot);
+
   mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
   m3[3][3] = 1;
+
   T = m2 * m3;
+}
+
+void updateRotation() {
+  getRotationMatrix(pitch, yaw, 0, rotation);
+
+  TransformationMatrix(cameraPos, rotation, transformMat);
 }
 
 void moveCameraRight(int direction, float distance) {
@@ -361,15 +372,19 @@ bool Update() {
       switch(key_code) {
         case SDLK_UP:
           pitch += M_PI / 18;
+          updateRotation();
           break;
         case SDLK_DOWN:
           pitch -= M_PI / 18;
+          updateRotation();
           break;
         case SDLK_LEFT:
           yaw -= M_PI / 18;
+          updateRotation();
           break;
         case SDLK_RIGHT:
           yaw += M_PI / 18;
+          updateRotation();
           break;
         case SDLK_r:
           /* Look-At function, points camera to 0,0,0 */

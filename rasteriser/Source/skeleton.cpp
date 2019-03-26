@@ -33,6 +33,8 @@ SDL_Event event;
 #define SCREEN_HEIGHT 600
 #define FULLSCREEN_MODE false
 
+#define CLIP_OFFSET 50
+
 std::vector<Triangle> triangles;
 
 const float focalLength = SCREEN_HEIGHT;
@@ -77,9 +79,38 @@ void moveCameraForward(int direction, float distance);
 void moveCameraUp(int direction, float distance);
 void moveCameraRight(int direction, float distance);
 
+unsigned char ComputeOutcode(Pixel p);
+
 int main( int argc, char* argv[] ) {
 
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+
+  /* Test outcodes */
+  Pixel a, b, c, d, e, f, g, h, i;
+  a.x = -1; a.y = -1;                              // 1001 = 9
+  b.x = -1; b.y = SCREEN_HEIGHT / 2;               // 0001 = 1
+  c.x = SCREEN_WIDTH / 2; c.y = -1;                // 1000 = 8
+  d.x = SCREEN_WIDTH / 2; d.y = SCREEN_HEIGHT / 2; // 0000 = 0
+  e.x = SCREEN_WIDTH + 1; e.y = -1;                // 1010 = 10
+  f.x = SCREEN_WIDTH + 1; f.y = SCREEN_HEIGHT / 2; // 0010 = 2
+  g.x = SCREEN_WIDTH + 1; g.y = SCREEN_HEIGHT + 1; // 0110 = 6
+  h.x = SCREEN_WIDTH / 2; h.y = SCREEN_HEIGHT + 1; // 0100 = 4
+  i.x = -1; i.y = SCREEN_HEIGHT + 1;               // 0101 = 5
+
+  unsigned char acode = ComputeOutcode(a);
+  unsigned char bcode = ComputeOutcode(b);
+  unsigned char ccode = ComputeOutcode(c);
+  unsigned char dcode = ComputeOutcode(d);
+  unsigned char ecode = ComputeOutcode(e);
+  unsigned char fcode = ComputeOutcode(f);
+  unsigned char gcode = ComputeOutcode(g);
+  unsigned char hcode = ComputeOutcode(h);
+  unsigned char icode = ComputeOutcode(i);
+
+  cout << "a:" << (int) acode << ", b:" << (int) bcode << ", c:" << (int) ccode << ", d:" << (int) dcode << "." << endl;
+  cout << "e:" << (int) ecode << ", f:" << (int) fcode << ", g:" << (int) gcode << ", h:" << (int) hcode << ", i:" << (int) icode << "." << endl;
+  /* End outcodes test */
+
 
   LoadTestModel(triangles);
 
@@ -108,7 +139,7 @@ void PixelShader(screen *screen, const Pixel& p) {
   int x = p.x;
   int y = p.y;
 
-  if(p.zinv > depthBuffer[y][x]) {
+  if (p.zinv > depthBuffer[y][x]) {
     depthBuffer[y][x] = p.zinv;
 
     vec4 rVec = lightPos - p.pos3d;
@@ -230,7 +261,10 @@ void DrawPolygon(screen* screen, const vector<Vertex>& vertices) {
   int V = vertices.size();
   vector<Pixel> vertexPixels(V);
 
-  for(int i=0; i<V; ++i) VertexShader(vertices[i], vertexPixels[i]);
+  for(int i=0; i<V; ++i) {
+    VertexShader(vertices[i], vertexPixels[i]);
+    cout << "x: " << vertexPixels[i].x << ", y:" << vertexPixels[i].y << endl;
+  }
 
   vector<Pixel> leftPixels;
   vector<Pixel> rightPixels;
@@ -303,6 +337,20 @@ void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vect
     }
   }
 }
+
+unsigned char ComputeOutcode(Pixel pixel) {
+  unsigned char outcode = 0;
+  int xmin = CLIP_OFFSET, xmax = SCREEN_WIDTH - CLIP_OFFSET,
+      ymin = CLIP_OFFSET, ymax = SCREEN_HEIGHT - CLIP_OFFSET;
+
+  if (pixel.x  < xmin) outcode = outcode | 1;
+  if (pixel.x > xmax) outcode = outcode | 2;
+  if (pixel.y < ymin) outcode = outcode | 8;
+  if (pixel.y > ymax) outcode = outcode | 4;
+
+  return outcode;
+}
+
 
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 	R[0][0] = cos(thetaY) * cos(thetaZ);

@@ -233,7 +233,7 @@ vector<Pixel> clipTriangleToScreen(vector<Pixel> vertexPixels) {
         // calculate x value
         int x = vertex.x + (nextVertex.x - vertex.x) * ((ymin - vertex.y) / (nextVertex.y - vertex.y));
 
-        // BROKEN: calculate pos3d
+        // calculate pos3d
         vec4 pos = vertex.pos3d + (nextVertex.pos3d - vertex.pos3d) * ((float) ((ymin - vertex.y) / (nextVertex.y - vertex.y))) ;
 
         Pixel p;
@@ -245,9 +245,34 @@ vector<Pixel> clipTriangleToScreen(vector<Pixel> vertexPixels) {
         // add pixel to invertexPixels
         invertexPixels.push_back(p);
 
-        // if the first vertex is in then add it to invertexPixels
-        if (p1code == 0) invertexPixels.push_back(vertex);
+        // compute new outcode
+        outcode = outcode ^ 1<<3;
       }
+      // check left plane
+      if ((outcode | 1) == 1) {
+        // need to clip to left
+
+        // calculate y value
+        int y = vertex.y + (nextVertex.y - vertex.y) * ((xmin - vertex.x) / (nextVertex.x - vertex.x));
+
+        // calculate pos3d
+        vec4 pos = vertex.pos3d + (nextVertex.pos3d - vertex.pos3d) * ((float) ((xmin - vertex.x) / (nextVertex.x - vertex.x))) ;
+
+        Pixel p;
+        p.x = xmin;
+        p.y = y;
+        p.pos3d = pos;
+        p.zinv = 1/pos.z;
+
+        // add pixel to invertexPixels
+        invertexPixels.push_back(p);
+
+        // compute new outcode
+        outcode = outcode ^ 1;
+      }
+
+      // if the first vertex is in then add it to invertexPixels
+      if (p1code == 0) invertexPixels.push_back(vertex);
     }
   }
 

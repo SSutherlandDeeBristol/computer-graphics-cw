@@ -66,6 +66,8 @@ void VertexShader(const Vertex& v, Pixel& p);
 void PixelShader(screen *screen, const Pixel& p);
 bool isWithinBounds(ivec2 v);
 bool isWithinBounds(Pixel v);
+vector<Vertex> clipTriangleToScreen(vector<Vertex> vertices);
+unsigned char ComputeOutcode(Pixel pixel);
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T);
 void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result);
 void Interpolate(Pixel a, Pixel b, vector<ivec2>& result);
@@ -156,8 +158,6 @@ void PixelShader(screen *screen, const Pixel& p) {
 
     vec3 R = currentReflectance * (D + indirectLightPowerPerArea);
 
-    //printf("A: %f, B: (%f,%f,%f), D: (%f,%f,%f), R: (%f,%f,%f)\n", A, B.x, B.y, B.z, D.x, D.y, D.z, R.x, R.y, R.z);
-
     PutPixelSDL(screen, x, y, R * currentColor);
   }
 }
@@ -184,6 +184,7 @@ void Draw(screen* screen) {
       currentColor = triangles[i].color;
       currentNormal = triangles[i].normal;
       currentReflectance = vec3(1.2,1.2,1.2);
+
       DrawPolygon(screen, vertices);
     }
   }
@@ -195,6 +196,62 @@ bool isWithinBounds(ivec2 v) {
 
 bool isWithinBounds(Pixel v) {
   return v.x > 0 && v.x < SCREEN_WIDTH && v.y > 0 && v.y < SCREEN_HEIGHT;
+}
+
+vector<Pixel> clipTriangleToScreen(vector<Pixel> vertexPixels) {
+  int xmin = CLIP_OFFSET, xmax = SCREEN_WIDTH - CLIP_OFFSET,
+      ymin = CLIP_OFFSET, ymax = SCREEN_HEIGHT - CLIP_OFFSET;
+
+  int V = vertexPixels.size();
+  vector<Pixel> invertexPixels;
+
+  for (int i = 0; i < V; i++) {
+    Pixel vertex = vertexPixels[i];
+    Pixel nextVertex = vertexPixels[(i == V - 1) ? 0 : i + 1];
+
+    // calculate outcodes for each projected vertex
+    unsigned char p1code = ComputeOutcode(vertex);
+    unsigned char p2code = ComputeOutcode(nextVertex);
+
+    unsigned char outcode = p1code | p2code;
+
+    printf("p1code: %d\n", p1code);
+    printf("p2code: %d\n", p2code);
+
+    // check if on-screen 0000 V 0000 = 0000
+    if ((outcode) == 0) {
+      printf("appending vertex\n");
+      // add the first vertex to invertexPixels
+      invertexPixels.push_back(vertex);
+
+    // check if the whole line is off the screen and only continue if not
+    } else if ((p1code & p2code) == 0) {
+      // check top plane
+      if ((outcode | 1<<3) == 1<<3) {
+        // need to clip to top
+
+        // calculate x value
+        int x = vertex.x + (nextVertex.x - vertex.x) * ((ymin - vertex.y) / (nextVertex.y - vertex.y));
+
+        // BROKEN: calculate pos3d
+        vec4 pos = vertex.pos3d + (nextVertex.pos3d - vertex.pos3d) * ((ymin - vertex.pos3d.y) / (nextVertex.pos3d.y - vertex.pos3d.y));
+
+        Pixel p;
+        p.x = x;
+        p.y = ymin;
+        p.pos3d = pos;
+        p.zinv = 1/pos.z;
+
+        // add pixel to invertexPixels
+        invertexPixels.push_back(p);
+
+        // if the first vertex is in then add it to invertexPixels
+        if (p1code == 0) invertexPixels.push_back(vertex);
+      }
+    }
+  }
+
+  return invertexPixels;
 }
 
 void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result ) {
@@ -268,11 +325,17 @@ void DrawPolygon(screen* screen, const vector<Vertex>& vertices) {
     cout << "x: " << vertexPixels[i].x << ", y:" << vertexPixels[i].y << endl;
   }
 
+  vector<Pixel> invertexPixels = clipTriangleToScreen(vertexPixels);
+
   vector<Pixel> leftPixels;
   vector<Pixel> rightPixels;
 
-  ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
-  DrawPolygonRows(screen, leftPixels, rightPixels);
+  if (invertexPixels.size() > 0) {
+    ComputePolygonRows(invertexPixels, leftPixels, rightPixels);
+
+    //ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
+    DrawPolygonRows(screen, leftPixels, rightPixels);
+  }
 }
 
 void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels) {

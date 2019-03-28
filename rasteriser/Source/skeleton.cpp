@@ -234,7 +234,7 @@ vector<Pixel> clipTriangleToScreen(vector<Pixel> vertexPixels) {
         int x = vertex.x + (nextVertex.x - vertex.x) * ((ymin - vertex.y) / (nextVertex.y - vertex.y));
 
         // BROKEN: calculate pos3d
-        vec4 pos = vertex.pos3d + (nextVertex.pos3d - vertex.pos3d) * ((ymin - vertex.pos3d.y) / (nextVertex.pos3d.y - vertex.pos3d.y));
+        vec4 pos = vertex.pos3d + (nextVertex.pos3d - vertex.pos3d) * ((float) ((ymin - vertex.y) / (nextVertex.y - vertex.y))) ;
 
         Pixel p;
         p.x = x;

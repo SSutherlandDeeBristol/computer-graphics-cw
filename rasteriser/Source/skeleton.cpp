@@ -28,6 +28,7 @@ const vec4 defaultCameraPos(0.0, 0.0, -3.001, 1.0);
 vec4 cameraPos(0, 0, -3.001, 1.0);
 mat3 rotation;
 mat4 transform;
+mat4 projection;
 float yaw = 0;
 float pitch = 0;
 
@@ -43,6 +44,7 @@ void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result);
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void DrawLineSDL(screen* surface, ivec2 a, ivec2 b, vec3 colour);
 void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour);
+void getProjectionMatrix(mat4 &mat);
 
 int main( int argc, char* argv[] ) {
 
@@ -73,6 +75,7 @@ void Draw(screen* screen) {
 
   getRotationMatrix(pitch, yaw, 0, rotation);
   TransformationMatrix(cameraPos, rotation, transform);
+  getProjectionMatrix(projection);
 
   for( uint32_t i=0; i<triangles.size(); ++i ) {
     vector<vec4> vertices(3);
@@ -118,13 +121,22 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
   // Transform each vertex from 3D world position to 2D image position:
   vector<ivec2> projectedVertices(V);
   for (int i = 0; i < V; ++i) {
-    VertexShader(transform * vertices[i], projectedVertices[i]);
+    vec4 homogenousCoord = projection * vertices[i];
+    vec4 transformedCoord = transform * homogenousCoord;
+    vec4 homogenousDivide = (1/transformedCoord.w) * transformedCoord;
+    std::cout<<glm::to_string(homogenousDivide)<<std::endl;
+    VertexShader(homogenousDivide, projectedVertices[i]);
   }
   // Loop over all vertices and draw the edge from it to the next vertex:
   for (int i = 0; i < V; ++i) {
     int j = (i + 1) % V; // The next vertex
     DrawLineSDL(screen, projectedVertices[i], projectedVertices[j], colour);
   }
+}
+
+void getProjectionMatrix(mat4 &mat) {
+  mat = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 1/focalLength), vec4(0, 0, 0, 0));
+  // std::cout<<glm::to_string(projection * transform * vertices[i] * projection)<<std::endl;
 }
 
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
@@ -142,12 +154,11 @@ void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 }
 
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4&T) {
-  // vec4 zeroVec = vec4(0, 0, 0, 0);
-  // mat4 m1 = mat4(zeroVec, zeroVec, zeroVec, camPos);
+  mat4 m1 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), camPos);
   mat4 m2 = mat4(rot);
   mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
-  m3[3][3] = 1;
-  T = m2 * m3;
+  m1[3][3] = 1; m3[3][3] = 1;
+  T = m1 * m2 * m3;
 }
 
 void moveCameraRight(int direction, float distance) {

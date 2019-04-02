@@ -64,9 +64,14 @@ int main( int argc, char* argv[] ) {
 }
 
 void VertexShader(const vec4& v, ivec2& p) {
-  p.x = focalLength * (v.x / v.z) + SCREEN_WIDTH / 2;
-  p.y = focalLength * (v.y / v.z) + SCREEN_HEIGHT / 2;
+  p.x = v.x + SCREEN_WIDTH / 2;
+  p.y = v.y + SCREEN_HEIGHT / 2;
 }
+
+// void VertexShader(const vec4& v, ivec2& p) {
+//   p.x = focalLength * (v.x / v.z) + SCREEN_WIDTH / 2;
+//   p.y = focalLength * (v.y / v.z) + SCREEN_HEIGHT / 2;
+// }
 
 /* Place your drawing here */
 void Draw(screen* screen) {
@@ -121,10 +126,14 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
   // Transform each vertex from 3D world position to 2D image position:
   vector<ivec2> projectedVertices(V);
   for (int i = 0; i < V; ++i) {
-    vec4 homogenousCoord = projection * vertices[i];
-    vec4 transformedCoord = transform * homogenousCoord;
+    /* Perform transform on co-ordinate */
+    vec4 homogenousCoord = transform * vertices[i];
+    /* Project co-ordinate to Homogenous space */
+    vec4 transformedCoord = projection * homogenousCoord;
+    /* Perform homogenous divide (projects to plane at w = 1) */
     vec4 homogenousDivide = (1/transformedCoord.w) * transformedCoord;
-    std::cout<<glm::to_string(homogenousDivide)<<std::endl;
+    std::cout << glm::to_string(homogenousDivide) << std::endl;
+    /* Get position on screen */
     VertexShader(homogenousDivide, projectedVertices[i]);
   }
   // Loop over all vertices and draw the edge from it to the next vertex:
@@ -136,7 +145,6 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
 
 void getProjectionMatrix(mat4 &mat) {
   mat = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 1/focalLength), vec4(0, 0, 0, 0));
-  // std::cout<<glm::to_string(projection * transform * vertices[i] * projection)<<std::endl;
 }
 
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
@@ -153,11 +161,11 @@ void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 	R[2][2] = cos(thetaX) * cos(thetaY);
 }
 
-void TransformationMatrix(vec4 camPos, mat3 rot, mat4&T) {
+void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T) {
   mat4 m1 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), camPos);
   mat4 m2 = mat4(rot);
   mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
-  m1[3][3] = 1; m3[3][3] = 1;
+  m1[3][3] = 1; m2[3][3] = 1; m3[3][3] = 1;
   T = m1 * m2 * m3;
 }
 

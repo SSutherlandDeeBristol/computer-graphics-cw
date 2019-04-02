@@ -166,7 +166,8 @@ void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T) {
   mat4 m2 = mat4(rot);
   mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
   m1[3][3] = 1; m2[3][3] = 1; m3[3][3] = 1;
-  T = m1 * m2 * m3;
+  // T = m1 * m2 * m3;
+  // T = m2 * m3;
 }
 
 void moveCameraRight(int direction, float distance) {

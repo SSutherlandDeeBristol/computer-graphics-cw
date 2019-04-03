@@ -38,6 +38,8 @@
     "xutility": "cpp",
     "cstdarg": "cpp",
     "ctime": "cpp",
-    "string": "cpp"
+    "string": "cpp",
+    "fstream": "cpp",
+    "sstream": "cpp"
   }
 }

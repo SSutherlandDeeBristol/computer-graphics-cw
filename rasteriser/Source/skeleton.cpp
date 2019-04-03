@@ -27,7 +27,7 @@ const vec4 defaultCameraPos(0.0, 0.0, -3.001, 1.0);
 
 vec4 cameraPos(0, 0, -3.001, 1.0);
 mat3 rotation;
-mat4 transform;
+mat4 transformMat;
 mat4 projection;
 float yaw = 0;
 float pitch = 0;
@@ -79,7 +79,7 @@ void Draw(screen* screen) {
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
   getRotationMatrix(pitch, yaw, 0, rotation);
-  TransformationMatrix(cameraPos, rotation, transform);
+  TransformationMatrix(cameraPos, rotation, transformMat);
   getProjectionMatrix(projection);
 
   for( uint32_t i=0; i<triangles.size(); ++i ) {
@@ -127,7 +127,7 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
   vector<ivec2> projectedVertices(V);
   for (int i = 0; i < V; ++i) {
     /* Perform transform on co-ordinate */
-    vec4 homogenousCoord = transform * vertices[i];
+    vec4 homogenousCoord = transformMat * vertices[i];
     /* Project co-ordinate to Homogenous space */
     vec4 transformedCoord = projection * homogenousCoord;
     /* Perform homogenous divide (projects to plane at w = 1) */
@@ -167,7 +167,7 @@ void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T) {
   mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
   m1[3][3] = 1; m2[3][3] = 1; m3[3][3] = 1;
   // T = m1 * m2 * m3;
-  // T = m2 * m3;
+  T = m2 * m3;
 }
 
 void moveCameraRight(int direction, float distance) {

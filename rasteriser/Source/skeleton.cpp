@@ -67,7 +67,7 @@ void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T);
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void getProjectionMatrix(mat4 &mat);
 
-void VertexShader( const Vertex& v, Pixel& p );
+void VertexShader(const Vertex& v, Pixel& p);
 void DrawClipOffset(screen* screen, bool fillOutline);
 void DrawLineSDL(screen* surface, Pixel a, Pixel b, vec3 colour);
 void DrawPolygonEdges(screen* screen, const vector<Vertex>& vertices, vec3 colour);
@@ -77,7 +77,7 @@ void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour);
 
 int main(int argc, char* argv[]) {
 
-  screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+  screen *screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
 
   LoadTestModel(triangles);
   // LoadTestTriangle(triangles);
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
     SDL_Renderframe(screen);
   }
 
-  SDL_SaveImage( screen, "screenshot.bmp" );
+  SDL_SaveImage(screen, "screenshot.bmp");
 
   KillSDL(screen);
   return 0;

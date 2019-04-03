@@ -34,6 +34,56 @@ public:
 	}
 };
 
+void LoadTestTriangle( std::vector<Triangle>& triangles ) {
+
+	using glm::vec3;
+	using glm::vec4;
+
+	vec3 white(  0.75f, 0.75f, 0.75f );
+
+	float L = 555;			// Length of Cornell Box side.
+
+	vec4 A(L,0,0,1);
+	vec4 B(0,0,0,1);
+	vec4 C(L,0,L,1);
+	vec4 D(0,0,L,1);
+
+	vec4 E(L,L,0,1);
+	vec4 F(0,L,0,1);
+	vec4 G(L,L,L,1);
+	vec4 H(0,L,L,1);
+
+	triangles.clear();
+	triangles.reserve( 1 );
+
+	triangles.push_back( Triangle( G, D, C, white ) );
+
+	for( size_t i=0; i<triangles.size(); ++i ) {
+		triangles[i].v0 *= 2/L;
+		triangles[i].v1 *= 2/L;
+		triangles[i].v2 *= 2/L;
+
+		triangles[i].v0 -= vec4(1,1,1,1);
+		triangles[i].v1 -= vec4(1,1,1,1);
+		triangles[i].v2 -= vec4(1,1,1,1);
+
+		triangles[i].v0.x *= -1;
+		triangles[i].v1.x *= -1;
+		triangles[i].v2.x *= -1;
+
+		triangles[i].v0.y *= -1;
+		triangles[i].v1.y *= -1;
+		triangles[i].v2.y *= -1;
+
+		triangles[i].v0.w = 1.0;
+		triangles[i].v1.w = 1.0;
+		triangles[i].v2.w = 1.0;
+
+		triangles[i].ComputeNormal();
+	}
+
+}
+
 // Loads the Cornell Box. It is scaled to fill the volume:
 // -1 <= x <= +1
 // -1 <= y <= +1

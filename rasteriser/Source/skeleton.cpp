@@ -45,12 +45,15 @@ void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void DrawLineSDL(screen* surface, ivec2 a, ivec2 b, vec3 colour);
 void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour);
 void getProjectionMatrix(mat4 &mat);
+void clipTriangle(Triangle triangle, vector<vec4>& clippedTriangles);
+bool isInside(float i, float w, float maxVal);
 
 int main( int argc, char* argv[] ) {
 
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
 
-  LoadTestModel(triangles);
+  // LoadTestModel(triangles);
+  LoadTestTriangle(triangles);
 
   while ( Update() ) {
     Draw(screen);
@@ -63,15 +66,15 @@ int main( int argc, char* argv[] ) {
   return 0;
 }
 
-void VertexShader(const vec4& v, ivec2& p) {
-  p.x = v.x + SCREEN_WIDTH / 2;
-  p.y = v.y + SCREEN_HEIGHT / 2;
-}
-
 // void VertexShader(const vec4& v, ivec2& p) {
-//   p.x = focalLength * (v.x / v.z) + SCREEN_WIDTH / 2;
-//   p.y = focalLength * (v.y / v.z) + SCREEN_HEIGHT / 2;
+//   p.x = v.x + SCREEN_WIDTH / 2;
+//   p.y = v.y + SCREEN_HEIGHT / 2;
 // }
+
+void VertexShader(const vec4& v, ivec2& p) {
+  p.x = focalLength * (v.x / v.z) + SCREEN_WIDTH / 2;
+  p.y = focalLength * (v.y / v.z) + SCREEN_HEIGHT / 2;
+}
 
 /* Place your drawing here */
 void Draw(screen* screen) {
@@ -83,15 +86,51 @@ void Draw(screen* screen) {
   getProjectionMatrix(projection);
 
   for( uint32_t i=0; i<triangles.size(); ++i ) {
-    vector<vec4> vertices(3);
+    vector<vec4> vertices(4);
     vertices[0] = triangles[i].v0;
     vertices[1] = triangles[i].v1;
     vertices[2] = triangles[i].v2;
 
     vec3 colour = vec3(1, 1, 1);
 
-    DrawPolygonEdges(screen, vertices, colour);
+    vector<vec4> clippedVertices;
+
+    clipTriangle(triangles[i], clippedVertices);
+
+    // TODO: Convert polygon to triangles and draw
+
+    DrawPolygonEdges(screen, clippedVertices, colour);
   }
+}
+
+void clipTriangle(Triangle triangle, vector<vec4>& inVertices) {
+
+  inVertices.clear();
+
+  vector<vec4> vertices(3);
+  vertices[0] = triangle.v0;
+  vertices[1] = triangle.v1;
+  vertices[2] = triangle.v2;
+
+  for (int i = 0; i < 3; i++) {
+    /* Perform transform on co-ordinate */
+    vec4 transformedCoord = transform * vertices[i];
+    /* Project co-ordinate to Homogenous space */
+    vec4 homogenousCoord = projection * transformedCoord;
+    std::cout << glm::to_string(homogenousCoord) << std::endl;
+    /* Perform homogenous divide (projects to plane at w = 1) */
+    vec4 homogenousDivide = (1/homogenousCoord.w) * homogenousCoord; // [u, v, f, 1]
+
+    bool isInX = isInside(homogenousCoord.x, homogenousCoord.w, SCREEN_WIDTH/2);
+    bool isInY = isInside(homogenousCoord.y, homogenousCoord.w, SCREEN_WIDTH/2);
+    std::cout << "isInX: " << isInX << ", isInY: " << isInY << std::endl;
+
+    inVertices.push_back(vertices[i]);
+  }
+}
+
+bool isInside(float i, float w, float maxVal) {
+  return (i <= (w * maxVal)) && (i >= (w * -maxVal));
 }
 
 bool isWithinBounds(ivec2 v) {
@@ -126,15 +165,15 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
   // Transform each vertex from 3D world position to 2D image position:
   vector<ivec2> projectedVertices(V);
   for (int i = 0; i < V; ++i) {
-    /* Perform transform on co-ordinate */
-    vec4 homogenousCoord = transform * vertices[i];
-    /* Project co-ordinate to Homogenous space */
-    vec4 transformedCoord = projection * homogenousCoord;
-    /* Perform homogenous divide (projects to plane at w = 1) */
-    vec4 homogenousDivide = (1/transformedCoord.w) * transformedCoord;
-    std::cout << glm::to_string(homogenousDivide) << std::endl;
+    // /* Perform transform on co-ordinate */
+    // vec4 transformedCoord = transform * vertices[i];
+    // /* Project co-ordinate to Homogenous space */
+    // vec4 homogenousCoord = projection * transformedCoord;
+    // std::cout << glm::to_string(homogenousCoord) << std::endl;
+    // /* Perform homogenous divide (projects to plane at w = 1) */
+    // vec4 homogenousDivide = (1/homogenousCoord.w) * homogenousCoord;
     /* Get position on screen */
-    VertexShader(homogenousDivide, projectedVertices[i]);
+    VertexShader(transform * vertices[i], projectedVertices[i]);
   }
   // Loop over all vertices and draw the edge from it to the next vertex:
   for (int i = 0; i < V; ++i) {
@@ -167,7 +206,7 @@ void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T) {
   mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
   m1[3][3] = 1; m2[3][3] = 1; m3[3][3] = 1;
   // T = m1 * m2 * m3;
-  // T = m2 * m3;
+  T = m2 * m3;
 }
 
 void moveCameraRight(int direction, float distance) {
@@ -193,7 +232,7 @@ bool Update() {
   float dt = float(t2-t);
   t = t2;
 
-  std::cout << "Render time: " << dt << " ms." << std::endl;
+  std::cout << "Render time: " << dt << " ms. --------------------------------------------" << std::endl;
 
   SDL_Event e;
   while(SDL_PollEvent(&e)) {

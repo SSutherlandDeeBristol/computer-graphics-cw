@@ -51,7 +51,8 @@ bool Update();
 void Draw(screen* screen);
 
 bool isWithinScreenBounds(Pixel p);
-void Interpolate(Pixel a, Pixel b, vector<Pixel>& result );
+void Interpolate(float a, float b, vector<float>& result);
+void Interpolate(Pixel a, Pixel b, vector<Pixel>& result);
 
 void clipHomogenousVerticesToPlane(vector<Vertex>& clipBuffer, Axis axis, float maxVal, bool pos);
 void clipTriangle(Triangle triangle, vector<Vertex>& inVertices);
@@ -214,21 +215,22 @@ bool isWithinScreenBounds(Pixel p) {
   return p.x > 0 && p.x < SCREEN_WIDTH && p.y > 0 && p.y < SCREEN_HEIGHT;
 }
 
-void Interpolate(Pixel a, Pixel b, vector<Pixel>& result ) {
-  int N = result.size();
+void Interpolate(Pixel a, Pixel b, vector<Pixel>& result) {
+  int size = result.size();
+  vector<float> x(size), y(size);
 
-  float stepX = (b.x - a.x) / float(max(N - 1, 1));
-  float stepY = (b.y - a.y) / float(max(N - 1, 1));
+  Interpolate(a.x, b.x, x); Interpolate(a.y, b.y, y);
 
-  float currentX(a.x);
-  float currentY(a.y);
-
-  for (int i = 0; i < N; ++i) {
-    result[i].x = round(currentX);
-    result[i].y = round(currentY);
-    currentX += stepX;
-    currentY += stepY;
+  for (int i = 0; i < size; i++) {
+    result[i].x = x[i]; result[i].y = y[i];
   }
+}
+
+void Interpolate(float a, float b, vector<float>& result) {
+  int size = result.size();
+  float dist = b - a, incr = dist / (float) max(1, (size - 1));
+
+  for (int i = 0; i < size; i++) result[i] = a + (incr * i);
 }
 
 void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour) {

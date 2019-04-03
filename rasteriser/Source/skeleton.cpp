@@ -18,6 +18,7 @@ SDL_Event event;
 
 #define SCREEN_WIDTH 600
 #define SCREEN_HEIGHT 600
+#define CLIP_OFFSET 100
 #define FULLSCREEN_MODE false
 
 std::vector<Triangle> triangles;
@@ -47,6 +48,7 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
 void getProjectionMatrix(mat4 &mat);
 void clipTriangle(Triangle triangle, vector<vec4>& clippedTriangles);
 bool isInside(float i, float w, float maxVal);
+void DrawClipOffset(screen* screen);
 
 int main( int argc, char* argv[] ) {
 
@@ -57,6 +59,7 @@ int main( int argc, char* argv[] ) {
 
   while ( Update() ) {
     Draw(screen);
+    DrawClipOffset(screen);
     SDL_Renderframe(screen);
   }
 
@@ -121,8 +124,8 @@ void clipTriangle(Triangle triangle, vector<vec4>& inVertices) {
     /* Perform homogenous divide (projects to plane at w = 1) */
     vec4 homogenousDivide = (1/homogenousCoord.w) * homogenousCoord; // [u, v, f, 1]
 
-    bool isInX = isInside(homogenousCoord.x, homogenousCoord.w, SCREEN_WIDTH/2);
-    bool isInY = isInside(homogenousCoord.y, homogenousCoord.w, SCREEN_WIDTH/2);
+    bool isInX = isInside(homogenousCoord.x, homogenousCoord.w, SCREEN_WIDTH/2 - CLIP_OFFSET);
+    bool isInY = isInside(homogenousCoord.y, homogenousCoord.w, SCREEN_HEIGHT/2 - CLIP_OFFSET);
     std::cout << "isInX: " << isInX << ", isInY: " << isInY << std::endl;
 
     inVertices.push_back(vertices[i]);
@@ -146,6 +149,22 @@ void Interpolate(ivec2 a, ivec2 b, vector<ivec2>& result ) {
     result[i] = current;
     current += step;
   }
+}
+
+void DrawClipOffset(screen* screen) {
+  vec3 colour = vec3(1, 0, 0);
+
+  ivec2 TL, TR, BL, BR;
+
+  TL.x = CLIP_OFFSET; TL.y = CLIP_OFFSET;
+  TR.x = SCREEN_WIDTH - CLIP_OFFSET; TR.y = CLIP_OFFSET;
+  BL.x = CLIP_OFFSET; BL.y = SCREEN_HEIGHT - CLIP_OFFSET;
+  BR.x = SCREEN_WIDTH - CLIP_OFFSET; BR.y = SCREEN_HEIGHT - CLIP_OFFSET;
+
+  DrawLineSDL(screen, TL, TR, colour);
+  DrawLineSDL(screen, TR, BR, colour);
+  DrawLineSDL(screen, BR, BL, colour);
+  DrawLineSDL(screen, BL, TL, colour);
 }
 
 void DrawLineSDL(screen* screen, ivec2 a, ivec2 b, vec3 colour) {

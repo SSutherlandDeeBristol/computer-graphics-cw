@@ -27,7 +27,7 @@ const vec4 defaultCameraPos(0.0, 0.0, -3.001, 1.0);
 
 vec4 cameraPos(0, 0, -3.001, 1.0);
 mat3 rotation;
-mat4 transform;
+mat4 transformMat;
 mat4 projection;
 float yaw = 0;
 float pitch = 0;
@@ -82,7 +82,7 @@ void Draw(screen* screen) {
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
   getRotationMatrix(pitch, yaw, 0, rotation);
-  TransformationMatrix(cameraPos, rotation, transform);
+  TransformationMatrix(cameraPos, rotation, transformMat);
   getProjectionMatrix(projection);
 
   for( uint32_t i=0; i<triangles.size(); ++i ) {
@@ -114,7 +114,7 @@ void clipTriangle(Triangle triangle, vector<vec4>& inVertices) {
 
   for (int i = 0; i < 3; i++) {
     /* Perform transform on co-ordinate */
-    vec4 transformedCoord = transform * vertices[i];
+    vec4 transformedCoord = transformMat * vertices[i];
     /* Project co-ordinate to Homogenous space */
     vec4 homogenousCoord = projection * transformedCoord;
     std::cout << glm::to_string(homogenousCoord) << std::endl;
@@ -166,14 +166,14 @@ void DrawPolygonEdges(screen* screen, const vector<vec4>& vertices, vec3 colour)
   vector<ivec2> projectedVertices(V);
   for (int i = 0; i < V; ++i) {
     // /* Perform transform on co-ordinate */
-    // vec4 transformedCoord = transform * vertices[i];
+    // vec4 transformedCoord = transformMat * vertices[i];
     // /* Project co-ordinate to Homogenous space */
     // vec4 homogenousCoord = projection * transformedCoord;
     // std::cout << glm::to_string(homogenousCoord) << std::endl;
     // /* Perform homogenous divide (projects to plane at w = 1) */
     // vec4 homogenousDivide = (1/homogenousCoord.w) * homogenousCoord;
     /* Get position on screen */
-    VertexShader(transform * vertices[i], projectedVertices[i]);
+    VertexShader(transformMat * vertices[i], projectedVertices[i]);
   }
   // Loop over all vertices and draw the edge from it to the next vertex:
   for (int i = 0; i < V; ++i) {

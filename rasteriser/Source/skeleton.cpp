@@ -20,7 +20,7 @@ SDL_Event event;
 #define SCREEN_HEIGHT 600
 #define CLIP_OFFSET 50
 #define NEAR_CLIP_THRESHOLD 2
-#define FAR_CLIP_THRESHOLD 7
+#define FAR_CLIP_THRESHOLD 10
 #define FULLSCREEN_MODE false
 
 std::vector<Triangle> triangles;

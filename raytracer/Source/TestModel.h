@@ -51,7 +51,7 @@ public:
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spheres )
+void LoadTestModel( std::vector<Triangle>& triangles)
 {
 	using glm::vec3;
 	using glm::vec4;
@@ -67,9 +67,6 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
-
-	spheres.clear();
-	spheres.reserve(1);
 
 	// ---------------------------------------------------------------------------
 	// Room
@@ -171,8 +168,6 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	// TOP
 	triangles.push_back( Triangle(G,F,E,blue) );
 	triangles.push_back( Triangle(G,H,F,blue) );
-
-	spheres.push_back( Sphere(vec4(0,0,0,1),0.3,purple) );
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3

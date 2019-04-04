@@ -37,7 +37,6 @@ vec3 indirectLight = 0.5f * vec3( 1, 1, 1 );
 const float shadowBiasThreshold = 0.001f;
 
 std::vector<Triangle> triangles;
-std::vector<Sphere> spheres;
 
 mat4 R;
 float yaw = 0;
@@ -48,7 +47,7 @@ float pitch = 0;
 
 bool Update();
 void Draw(screen* screen);
-bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, const vector<Sphere>& spheres, Intersection& closestIntersection);
+bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection);
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void updateRotation();
 vec3 DirectLight( const Intersection& i );
@@ -59,7 +58,7 @@ void lookAt(mat4& ctw);
 
 int main(int argc, char* argv[]) {
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-  LoadTestModel(triangles, spheres);
+  LoadTestModel(triangles);
 
   while (Update()) {
     Draw(screen);
@@ -99,7 +98,7 @@ void Draw(screen* screen) {
   }
 }
 
-bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, const vector<Sphere>& spheres, Intersection& closestIntersection) {
+bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection) {
   bool intersectionFound = false;
   closestIntersection = Intersection();
   closestIntersection.distance = std::numeric_limits<float>::max();
@@ -142,43 +141,6 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
 			}
     }
   }
-
-  /*for(std::vector<Sphere>::size_type i = 0; i < spheres.size(); i++) {
-    vec3 ro = vec3(start);
-    vec3 rd = vec3(dir);
-
-    vec3 ce = vec3(spheres[i].centre);
-    float ra = spheres[i].radius;
-
-    vec3 oc = ro - ce;
-    float b = dot( oc, rd );
-    float c = dot( oc, oc ) - ra*ra;
-    float h = b*b - c;
-
-    if( h < 0.0 ) {
-      // no intersection
-      break;
-    }
-
-    h = sqrt( h );
-
-    // -b - h or -b + h
-    for(int sign = -1; sign <= 1; sign += 2) {
-      // To prevent doing the same sum twice
-      if (!(sign == 1 && h == 0)) {
-        float sol = -b + sign * h;
-        vec4 position = start + sol * dir;
-        float dist = distance(start, position);
-
-        if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
-          intersectionFound = true;
-          closestIntersection.distance = dist;
-          closestIntersection.position = position;
-          closestIntersection.triangleIndex = i;
-        }
-      }
-    }
-  }*/
 
   return intersectionFound;
 }

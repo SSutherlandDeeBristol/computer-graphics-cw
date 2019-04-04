@@ -19,6 +19,8 @@ SDL_Event event;
 #define SCREEN_WIDTH 600
 #define SCREEN_HEIGHT 600
 #define CLIP_OFFSET 50
+#define NEAR_CLIP_THRESHOLD 2
+#define FAR_CLIP_THRESHOLD 7
 #define FULLSCREEN_MODE false
 
 std::vector<Triangle> triangles;
@@ -79,6 +81,7 @@ int main(int argc, char* argv[]) {
 
   screen *screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
 
+  // LoadTestTriangleZ(triangles);
   LoadTestModel(triangles);
   // LoadTestTriangle(triangles);
 
@@ -138,13 +141,16 @@ void clipTriangle(Triangle triangle, vector<Vertex>& inVertices) {
     Vertex homogenousCoord = vertices[i];
     projectToHomogenous(vertices[i], projectionMat, homogenousCoord);
     clipBuffer.push_back(homogenousCoord);
+    std::cout<<glm::to_string(homogenousCoord.position)<<std::endl;
   }
 
   /* Clip to each plane in turn, maintaining a buffer of clipped vertices */
-  clipHomogenousVerticesToPlane(clipBuffer, X, maxX, true);  /* Right  */
-  clipHomogenousVerticesToPlane(clipBuffer, X, maxX, false); /* Left   */
-  clipHomogenousVerticesToPlane(clipBuffer, Y, maxY, true);  /* Top    */
-  clipHomogenousVerticesToPlane(clipBuffer, Y, maxY, false); /* Bottom */
+  clipHomogenousVerticesToPlane(clipBuffer, X, maxX, true);                 /* Right  */
+  clipHomogenousVerticesToPlane(clipBuffer, X, maxX, false);                /* Left   */
+  clipHomogenousVerticesToPlane(clipBuffer, Y, maxY, true);                 /* Top    */
+  clipHomogenousVerticesToPlane(clipBuffer, Y, maxY, false);                /* Bottom */
+  clipHomogenousVerticesToPlane(clipBuffer, Z, NEAR_CLIP_THRESHOLD, false); /* Near   */
+  clipHomogenousVerticesToPlane(clipBuffer, Z, FAR_CLIP_THRESHOLD, true);   /* Far    */
 
   /* Flatten all vertices in the buffer (set their w component to 1) */
   for (size_t i = 0; i < clipBuffer.size(); i++) {
@@ -173,7 +179,8 @@ void clipHomogenousVerticesToPlane(vector<Vertex>& clipBuffer, Axis axis, float 
     /* If either the current or the next vertex require clipping, push a new vertex on the boundary intersection */
     if ((isCurIn && !isNxtIn) || (!isCurIn && isNxtIn)) {
       Vertex newVertex;
-      calcIntersection(curVertex, nxtVertex, newVertex, axis, pos ? maxVal : -maxVal);
+      float val = (axis == Z) ? maxVal : (pos ? maxVal : -maxVal);
+      calcIntersection(curVertex, nxtVertex, newVertex, axis, val);
       clipBuffer.push_back(newVertex);
     }
   }
@@ -198,17 +205,24 @@ void projectToHomogenous(Vertex vertex, mat4 proj, Vertex& projectedVertex) {
 }
 
 void calcIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVal) {
-  float t = (a.position[axis] - maxVal * a.position.w) /
+  float t;
+
+  if (axis == Z) {
+    t = (maxVal - a.position.z) / (b.position.z - a.position.z);
+  } else {
+    t = (a.position[axis] - maxVal * a.position.w) /
             ((maxVal * (b.position.w - a.position.w)) - (b.position[axis] - a.position[axis]));
+  }
+
   c.position = a.position + t * (b.position - a.position);
 }
 
 bool isInsidePos(Vertex vertex, Axis axis, float maxVal) {
-  return (vertex.position[axis] <= (vertex.position.w * maxVal));
+  return (axis == Z) ? vertex.position.z <= maxVal : (vertex.position[axis] <= (vertex.position.w * maxVal));
 }
 
 bool isInsideNeg(Vertex vertex, Axis axis, float maxVal) {
-  return (vertex.position[axis] >= (vertex.position.w * -maxVal));
+  return (axis == Z) ? vertex.position.z >= maxVal : (vertex.position[axis] >= (vertex.position.w * -maxVal));
 }
 
 bool isWithinScreenBounds(Pixel p) {
@@ -271,8 +285,8 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
     Pixel curVertex = vertexPixels[i];
     Pixel nxtVertex = vertexPixels[(i + 1) % vertexPixels.size()];
 
-    int deltaX = abs(curVertex.x - nxtVertex.x);
-    int deltaY = abs(curVertex.y - nxtVertex.y);
+    int deltaX = abs(nxtVertex.x - curVertex.x);
+    int deltaY = abs(nxtVertex.y - curVertex.y);
 
     int lineLength = (deltaX > deltaY) ? deltaX : deltaY;
 

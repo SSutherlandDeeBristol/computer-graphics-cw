@@ -143,7 +143,7 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
     }
   }
 
-  for(std::vector<Sphere>::size_type i = 0; i < spheres.size(); i++) {
+  /*for(std::vector<Sphere>::size_type i = 0; i < spheres.size(); i++) {
     vec3 ro = vec3(start);
     vec3 rd = vec3(dir);
 
@@ -178,7 +178,7 @@ bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles
         }
       }
     }
-  }
+  }*/
 
   return intersectionFound;
 }

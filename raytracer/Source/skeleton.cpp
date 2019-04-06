@@ -26,6 +26,13 @@ struct Intersection {
   int triangleIndex;
 };
 
+struct Photon {
+  vec4 position;
+  vec3 power;
+  float phi, theta;
+  int flag;
+}
+
 const float focalLength = SCREEN_HEIGHT;
 const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
 vec4 cameraPos(0.0, 0.0, -3.0, 1.0);

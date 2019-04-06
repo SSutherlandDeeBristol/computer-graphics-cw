@@ -47,6 +47,15 @@ public:
 	}
 };
 
+class LightSource {
+public:
+	float watts;
+	vec4 position;
+	vec4 direction;
+	float width;
+	float height;
+}
+
 // Loads the Cornell Box. It is scaled to fill the volume:
 // -1 <= x <= +1
 // -1 <= y <= +1

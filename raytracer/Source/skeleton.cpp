@@ -31,7 +31,7 @@ struct Photon {
   vec3 power;
   float phi, theta;
   int flag;
-}
+};
 
 const float focalLength = SCREEN_HEIGHT;
 const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
@@ -44,6 +44,7 @@ vec3 indirectLight = 0.5f * vec3( 1, 1, 1 );
 const float shadowBiasThreshold = 0.001f;
 
 std::vector<Triangle> triangles;
+std::vector<LightSource> lights;
 
 mat4 R;
 float yaw = 0;
@@ -65,7 +66,7 @@ void lookAt(mat4& ctw);
 
 int main(int argc, char* argv[]) {
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-  LoadTestModel(triangles);
+  LoadTestModel(triangles, lights);
 
   while (Update()) {
     Draw(screen);
@@ -93,7 +94,7 @@ void Draw(screen* screen) {
 			vec3 reflectedLight(0.0, 0.0, 0.0); // The visible colour
 			vec3 colour(0.0, 0.0, 0.0); // The original colour of the triangle
 
-      if (ClosestIntersection(cameraPos, d, triangles, spheres, intersection)) {
+      if (ClosestIntersection(cameraPos, d, triangles, intersection)) {
 				directLight = DirectLight(intersection);
 				colour = triangles[intersection.triangleIndex].color;
 
@@ -210,7 +211,7 @@ vec3 DirectLight( const Intersection& i ) {
 	Intersection intersection;
 	vec3 black = vec3(0.0, 0.0, 0.0); // Initialise to black
 
-	if (ClosestIntersection(i.position, rHat, triangles, spheres, intersection)) {
+	if (ClosestIntersection(i.position, rHat, triangles, intersection)) {
 		if (intersection.triangleIndex != i.triangleIndex && intersection.distance < r) {
 			C = black;
 		}

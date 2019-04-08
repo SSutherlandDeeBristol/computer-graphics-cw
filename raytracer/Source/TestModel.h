@@ -50,17 +50,23 @@ public:
 class LightSource {
 public:
 	float watts;
-	vec4 position;
-	vec4 direction;
+	glm::vec4 position;
+	glm::vec4 direction;
 	float width;
 	float height;
-}
+
+	LightSource( float watts, glm::vec4 position, glm::vec4 direction, float width, float height)
+		: watts(watts), position(position), direction(direction), width(width), height(height)
+	{
+
+	}
+};
 
 // Loads the Cornell Box. It is scaled to fill the volume:
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-void LoadTestModel( std::vector<Triangle>& triangles)
+void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& lights)
 {
 	using glm::vec3;
 	using glm::vec4;
@@ -73,6 +79,11 @@ void LoadTestModel( std::vector<Triangle>& triangles)
 	vec3 blue(   0.15f, 0.15f, 0.75f );
 	vec3 purple( 0.75f, 0.15f, 0.75f );
 	vec3 white(  0.75f, 0.75f, 0.75f );
+
+	lights.clear();
+	lights.reserve( 1 );
+
+	lights.push_back( LightSource( 2, vec4( 0, -0.5, -0.7, 1.0 ), vec4(0, -1, 0, 1), 0.2, 0.2));
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );

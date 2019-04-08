@@ -26,22 +26,18 @@ SDL_Event event;
 std::vector<Triangle> triangles;
 
 const float focalLength = SCREEN_HEIGHT;
-const vec4 defaultCameraPos(0.0, 0.0, -3.001, 1.0);
+const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
+const vec4 defaultLightPos(0, -0.6, -0.2, 1);
+const vec3 defaultReflectance(1.2, 1.2, 1.2);
 
-vec4 lightPos(0,-0.3,-0.3, 1);
-vec3 lightPower = 11.0f * vec3(1, 1, 1);
-vec3 indirectLightPowerPerArea = 0.5f*vec3(1, 1, 1);
+const vec3 lightPower = 10.0f * vec3(1, 1, 1);
+const vec3 indirectLightPowerPerArea = 0.5f * vec3(1, 1, 1);
 
-vec3 currentColor;
-vec4 currentNormal;
-vec3 currentReflectance;
-
+vec4 lightPos(0, -0.6, -0.2, 1);
 vec4 cameraPos(0, 0, -3.001, 1.0);
-mat3 rotationMat;
-mat4 transformMat;
-mat4 projectionMat;
-float yaw = 0;
-float pitch = 0;
+
+mat3 rotationMat; mat4 transformMat; mat4 projectionMat;
+float yaw = 0; float pitch = 0;
 
 enum Axis {X = 0, Y = 1, Z = 2, W = 3};
 
@@ -50,6 +46,9 @@ struct Pixel {
   int y;
   float zinv;
   vec4 pos3d;
+  vec3 colour3d;
+  vec4 normal3d;
+  vec3 reflectance3d;
 };
 
 struct Vertex {
@@ -66,7 +65,7 @@ void Draw(screen* screen);
 
 bool IsWithinScreenBounds(Pixel p);
 void Interpolate(float a, float b, vector<float>& result);
-void Interpolate(Pixel a, Pixel b, vector<Pixel>& result);
+void InterpolatePixels(Pixel a, Pixel b, vector<Pixel>& result);
 
 void ClipHomogenousVerticesToPlane(vector<Vertex>& clipBuffer, Axis axis, float maxVal, bool pos);
 void ClipTriangle(Triangle triangle, vector<Vertex>& inVertices);
@@ -81,15 +80,15 @@ void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T);
 void UpdateRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void UpdateProjectionMatrix(mat4 &mat);
 
-void VertexShader(const Vertex& v, Pixel& p);
+void VertexShader(const Vertex& v, Pixel& p, vec3 colour, vec4 normal, vec3 reflectance);
 void PixelShader(screen *screen, const Pixel& p);
 void DrawClipOffset(screen* screen, bool fillOutline);
 void DrawDepthBuffer(screen* screen);
 void DrawLineSDL(screen* surface, Pixel a, Pixel b, vec3 colour);
-void DrawPolygonEdges(screen* screen, const vector<Vertex>& vertices, vec3 colour);
+void DrawPolygonEdges(screen* screen, const vector<Vertex>& vertices, vec3 colour, vec4 normal, vec3 reflectance);
 void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels);
-void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, vec3 colour);
-void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour);
+void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels);
+void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour, vec4 normal, vec3 reflectance);
 
 void MoveCameraRight(int direction, float distance);
 void MoveCameraUp(int direction, float distance);
@@ -109,6 +108,8 @@ int main(int argc, char* argv[]) {
   LoadTestModel(triangles);
   // LoadTestTriangle(triangles);
 
+  lightPos = defaultLightPos;
+
   while (Update()) {
     Draw(mainScreen);
     DrawClipOffset(mainScreen, false);
@@ -125,31 +126,35 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-void VertexShader(const Vertex& v, Pixel& p) {
+void VertexShader(const Vertex& v, Pixel& p, vec3 colour, vec4 normal, vec3 reflectance) {
   p.x = focalLength * (v.position.x / v.position.z) + SCREEN_WIDTH / 2;
   p.y = focalLength * (v.position.y / v.position.z) + SCREEN_HEIGHT / 2;
   p.zinv = 1 / v.position.z;
   p.pos3d = v.position;
+  p.normal3d = normal;
+  p.colour3d = colour;
+  p.reflectance3d = reflectance;
 }
 
 void PixelShader(screen *screen, const Pixel& p) {
   if (p.zinv > depthBuffer[p.y][p.x]) {
     depthBuffer[p.y][p.x] = p.zinv;
 
-    vec4 rVec = lightPos - p.pos3d;
-    float r = distance(lightPos, p.pos3d);
-    vec4 rHat = normalize(rVec);
-    vec4 nHat = normalize(currentNormal);
+    /* Transform light into camera space */
+    vec4 transformedLight = transformMat * lightPos;
 
-    float A = float(4 * M_PI) * pow(r,2);
+    /* Calculate the amount of reflected light at this pixel */
+    float radius = distance(transformedLight, p.pos3d);
+    float area = 4 * M_PI * pow(radius, 2);
+    vec4 rHat = normalize(transformedLight - p.pos3d);
+    vec4 nHat = normalize(p.normal3d);
 
-    vec3 B = (lightPower * max(dot(rHat, nHat), 0.0f));
+    vec3 directLightPower = lightPower * max(dot(rHat, nHat), 0.0f);
+    vec3 directLightPowerPerArea = directLightPower / area;
+    vec3 reflectedLight = p.reflectance3d * (directLightPowerPerArea + indirectLightPowerPerArea);
 
-    vec3 D = B / A;
-
-    vec3 R = currentReflectance * (D + indirectLightPowerPerArea);
-
-    if (IsWithinScreenBounds(p)) PutPixelSDL(screen, p.x, p.y, R * currentColor);
+    /* Draw pixel to screen (if possible) */
+    if (IsWithinScreenBounds(p)) PutPixelSDL(screen, p.x, p.y, reflectedLight * p.colour3d);
   }
 }
 
@@ -177,14 +182,10 @@ void Draw(screen* screen) {
 
     ClipTriangle(transformedTriangle, clippedVertices);
 
-    currentColor = triangles[i].color;
-    currentNormal = triangles[i].normal;
-    currentReflectance = vec3(1.2,1.2,1.2);
-
     // TODO: Convert polygons to triangles
 
-    // DrawPolygonEdges(screen, clippedVertices, triangles[i].color); // Draw outlines
-    DrawPolygon(screen, clippedVertices, triangles[i].color); // Draw filled
+    // DrawPolygonEdges(screen, clippedVertices, triangles[i].color, triangles[i].normal, defaultReflectance); // Draw outlines
+    DrawPolygon(screen, clippedVertices, triangles[i].color, triangles[i].normal, defaultReflectance); // Draw filled
   }
 }
 
@@ -201,7 +202,6 @@ void ClipTriangle(Triangle triangle, vector<Vertex>& inVertices) {
     Vertex homogenousCoord = vertices[i];
     ProjectToHomogenous(vertices[i], projectionMat, homogenousCoord);
     clipBuffer.push_back(homogenousCoord);
-    // std::cout<<glm::to_string(homogenousCoord.position)<<std::endl;
   }
 
   /* Clip to each plane in turn, maintaining a buffer of clipped vertices */
@@ -289,22 +289,27 @@ bool IsWithinScreenBounds(Pixel p) {
   return p.x > 0 && p.x < SCREEN_WIDTH && p.y > 0 && p.y < SCREEN_HEIGHT;
 }
 
-void Interpolate(Pixel a, Pixel b, vector<Pixel>& result) {
+void InterpolatePixels(Pixel a, Pixel b, vector<Pixel>& result) {
   int size = result.size();
   vector<float> x(size), y(size), zinv(size);
-
   vector<float> x3d(size), y3d(size), z3d(size);
 
+  /* Interpolate 2D values */
   Interpolate(a.x, b.x, x); Interpolate(a.y, b.y, y); Interpolate(a.zinv, b.zinv, zinv);
 
-  Interpolate(a.pos3d.x, b.pos3d.x, x3d);
-  Interpolate(a.pos3d.y, b.pos3d.y, y3d);
+  /* Interpolate 3D values with perspective correction */
+  Interpolate(a.pos3d.x / a.pos3d.z, b.pos3d.x / b.pos3d.z, x3d);
+  Interpolate(a.pos3d.y / a.pos3d.z, b.pos3d.y / b.pos3d.z, y3d);
   Interpolate(a.pos3d.z, b.pos3d.z, z3d);
 
+  /* Populate results vector */
   for (int i = 0; i < size; i++) {
     result[i].x = round(x[i]); result[i].y = round(y[i]); result[i].zinv = zinv[i];
 
-    result[i].pos3d = vec4(x3d[i], y3d[i], z3d[i], 1);
+    result[i].pos3d = vec4(x3d[i] * z3d[i], y3d[i] * z3d[i], z3d[i], 1);
+    result[i].colour3d = a.colour3d;
+    result[i].normal3d = a.normal3d;
+    result[i].reflectance3d = a.reflectance3d;
   }
 }
 
@@ -315,16 +320,16 @@ void Interpolate(float a, float b, vector<float>& result) {
   for (int i = 0; i < size; i++) result[i] = a + (incr * i);
 }
 
-void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour) {
+void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour, vec4 normal, vec3 reflectance) {
   int V = vertices.size();
   vector<Pixel> vertexPixels(V);
 
-  for (int i = 0; i < V; i++) VertexShader(vertices[i], vertexPixels[i]);
+  for (int i = 0; i < V; i++) VertexShader(vertices[i], vertexPixels[i], colour, normal, reflectance);
 
   vector<Pixel> leftPixels; vector<Pixel> rightPixels;
 
   ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
-  DrawPolygonRows(screen, leftPixels, rightPixels, colour);
+  DrawPolygonRows(screen, leftPixels, rightPixels);
 }
 
 void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels) {
@@ -360,7 +365,7 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
 
     vector<Pixel> pixels(lineLength + 1);
 
-    Interpolate(curVertex, nxtVertex, pixels);
+    InterpolatePixels(curVertex, nxtVertex, pixels);
 
     for (size_t j = 0; j < pixels.size(); j++) {
       Pixel curPixel = pixels[j];
@@ -372,7 +377,7 @@ void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPi
   }
 }
 
-void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, vec3 colour) {
+void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels) {
   if (leftPixels.size() != rightPixels.size()) {
     std::cout << "Error in DrawPolygonRows: Left =/= Right" << std::endl;
     return;
@@ -380,7 +385,7 @@ void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vect
 
   for (size_t i = 0; i < leftPixels.size(); i++) {
     vector<Pixel> pixels(rightPixels[i].x - leftPixels[i].x + 1);
-    Interpolate(leftPixels[i], rightPixels[i], pixels);
+    InterpolatePixels(leftPixels[i], rightPixels[i], pixels);
 
     for (size_t j = 0; j < pixels.size(); j++) {
       PixelShader(screen, pixels[j]);
@@ -420,7 +425,7 @@ void DrawLineSDL(screen* screen, Pixel a, Pixel b, vec3 colour) {
   ivec2 delta = ivec2(glm::abs(a.x - b.x), glm::abs(a.y - b.y));
   int pixels = glm::max(delta.x, delta.y) + 1;
   vector<Pixel> line(pixels);
-  Interpolate(a, b, line);
+  InterpolatePixels(a, b, line);
 
   for (int px = 0; px < pixels; px++) {
     Pixel pixel = line[px];
@@ -428,11 +433,11 @@ void DrawLineSDL(screen* screen, Pixel a, Pixel b, vec3 colour) {
   }
 }
 
-void DrawPolygonEdges(screen* screen, const vector<Vertex>& vertices, vec3 colour) {
+void DrawPolygonEdges(screen* screen, const vector<Vertex>& vertices, vec3 colour, vec4 normal, vec3 reflectance) {
   int V = vertices.size();
   /* Transform each vertex from 3D world position to 2D image position */
   vector<Pixel> projectedVertices(V);
-  for (int i = 0; i < V; ++i) VertexShader(vertices[i], projectedVertices[i]);
+  for (int i = 0; i < V; ++i) VertexShader(vertices[i], projectedVertices[i], colour, normal, reflectance);
 
   /* Loop over all vertices and draw the edge from it to the next vertex */
   for (int i = 0; i < V; ++i) {
@@ -508,7 +513,7 @@ bool Update() {
   float dt = float(t2 - t);
   t = t2;
 
-  std::cout << "Render time: " << dt << " ms. --------------------------------------------" << std::endl;
+  std::cout << "Render time: " << dt << " ms." << std::endl;
 
   SDL_Event e;
   while(SDL_PollEvent(&e)) {
@@ -517,46 +522,25 @@ bool Update() {
   } else if (e.type == SDL_KEYDOWN) {
     int key_code = e.key.keysym.sym;
     switch(key_code) {
-      case SDLK_UP:
-        pitch += M_PI / 18;
-        break;
-      case SDLK_DOWN:
-        pitch -= M_PI / 18;
-        break;
-      case SDLK_LEFT:
-        yaw -= M_PI / 18;
-        break;
-      case SDLK_RIGHT:
-        yaw += M_PI / 18;
-        break;
-      case SDLK_r:
-        /* Look-At function, points camera to 0,0,0 */
-        LookAt(vec3(0, 0, 0));
-        break;
-      case SDLK_t:
-        /* Reset to default camera position */
-        ResetCameraPosition();
-        break;
-      case SDLK_w:
-        MoveCameraUp(-1, 0.25);
-        break;
-      case SDLK_s:
-        MoveCameraUp(1, 0.25);
-        break;
-      case SDLK_a:
-        MoveCameraRight(-1, 0.25);
-        break;
-      case SDLK_d:
-        MoveCameraRight(1, 0.25);
-        break;
-      case SDLK_EQUALS:
-        MoveCameraForward(1, 0.25);
-        break;
-      case SDLK_MINUS:
-        MoveCameraForward(-1, 0.25);
-        break;
-      case SDLK_ESCAPE:
-        return false;
+      case SDLK_UP:     pitch += M_PI / 18; break;
+      case SDLK_DOWN:   pitch -= M_PI / 18; break;
+      case SDLK_LEFT:   yaw -= M_PI / 18; break;
+      case SDLK_RIGHT:  yaw += M_PI / 18; break;
+      case SDLK_r:      LookAt(vec3(0, 0, 0)); break;
+      case SDLK_t:      ResetCameraPosition(); break;
+      case SDLK_w:      MoveCameraUp(-1, 0.25); break;
+      case SDLK_s:      MoveCameraUp(1, 0.25); break;
+      case SDLK_a:      MoveCameraRight(-1, 0.25); break;
+      case SDLK_d:      MoveCameraRight(1, 0.25); break;
+      case SDLK_EQUALS: MoveCameraForward(1, 0.25); break;
+      case SDLK_MINUS:  MoveCameraForward(-1, 0.25); break;
+      case SDLK_i:      lightPos.z += 0.2; break;
+      case SDLK_k:      lightPos.z -= 0.2; break;
+      case SDLK_j:      lightPos.x -= 0.2; break;
+      case SDLK_l:      lightPos.x += 0.2; break;
+      case SDLK_o:      lightPos.y -= 0.2; break;
+      case SDLK_p:      lightPos.y += 0.2; break;
+      case SDLK_ESCAPE: return false;
       }
     }
   }

@@ -55,48 +55,63 @@ float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 bool Update();
 void Draw(screen* screen);
 
-bool isWithinScreenBounds(Pixel p);
+bool IsWithinScreenBounds(Pixel p);
 void Interpolate(float a, float b, vector<float>& result);
 void Interpolate(Pixel a, Pixel b, vector<Pixel>& result);
 
-void clipHomogenousVerticesToPlane(vector<Vertex>& clipBuffer, Axis axis, float maxVal, bool pos);
-void clipTriangle(Triangle triangle, vector<Vertex>& inVertices);
-bool isInsidePos(Vertex vertex, Axis axis, float maxVal);
-bool isInsideNeg(Vertex vertex, Axis axis, float maxVal);
-void calcIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVal);
-void homogenousFlatten(Vertex homogenousVertex, Vertex& flatVertex);
-void homogenousDivide(Vertex homogenousVertex, Vertex& projectedVertex);
-void projectToHomogenous(Vertex vertex, mat4 proj, Vertex& projectedVertex);
+void ClipHomogenousVerticesToPlane(vector<Vertex>& clipBuffer, Axis axis, float maxVal, bool pos);
+void ClipTriangle(Triangle triangle, vector<Vertex>& inVertices);
+bool IsInsidePos(Vertex vertex, Axis axis, float maxVal);
+bool IsInsideNeg(Vertex vertex, Axis axis, float maxVal);
+void CalculateIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVal);
+void HomogenousFlatten(Vertex homogenousVertex, Vertex& flatVertex);
+void HomogenousDivide(Vertex homogenousVertex, Vertex& projectedVertex);
+void ProjectToHomogenous(Vertex vertex, mat4 proj, Vertex& projectedVertex);
 
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T);
-void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
-void getProjectionMatrix(mat4 &mat);
+void UpdateRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
+void UpdateProjectionMatrix(mat4 &mat);
 
 void VertexShader(const Vertex& v, Pixel& p);
 void DrawClipOffset(screen* screen, bool fillOutline);
+void DrawDepthBuffer(screen* screen);
 void DrawLineSDL(screen* surface, Pixel a, Pixel b, vec3 colour);
 void DrawPolygonEdges(screen* screen, const vector<Vertex>& vertices, vec3 colour);
 void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels);
 void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels, vec3 colour);
 void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour);
 
+void MoveCameraRight(int direction, float distance);
+void MoveCameraUp(int direction, float distance);
+void MoveCameraForward(int direction, float distance);
+void LookAt(vec3 toPos);
+void ResetCameraPosition();
+
+/* FUNCTIONS END                                                               */
+/* ----------------------------------------------------------------------------*/
+
 int main(int argc, char* argv[]) {
 
-  screen *screen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
+  screen *depthScreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
+  screen *mainScreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
 
   // LoadTestTriangleZ(triangles);
   LoadTestModel(triangles);
   // LoadTestTriangle(triangles);
 
   while (Update()) {
-    Draw(screen);
-    DrawClipOffset(screen, false);
-    SDL_Renderframe(screen);
+    Draw(mainScreen);
+    DrawClipOffset(mainScreen, false);
+    SDL_Renderframe(mainScreen);
+
+    DrawDepthBuffer(depthScreen);
+    SDL_Renderframe(depthScreen);
   }
 
-  SDL_SaveImage(screen, "screenshot.bmp");
+  SDL_SaveImage(mainScreen, "screenshot.bmp");
 
-  KillSDL(screen);
+  KillSDL(mainScreen);
+  KillSDL(depthScreen);
   return 0;
 }
 
@@ -111,13 +126,13 @@ void Draw(screen* screen) {
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
   /* Reset Z-buffer values */
-  for(int y = 0; y < SCREEN_HEIGHT; y++)
-    for(int x = 0; x < SCREEN_WIDTH; x++)
+  for (int y = 0; y < SCREEN_HEIGHT; y++)
+    for (int x = 0; x < SCREEN_WIDTH; x++)
       depthBuffer[y][x] = 0;
 
-  getRotationMatrix(pitch, yaw, 0, rotationMat);
+  UpdateRotationMatrix(pitch, yaw, 0, rotationMat);
   TransformationMatrix(cameraPos, rotationMat, transformMat);
-  getProjectionMatrix(projectionMat);
+  UpdateProjectionMatrix(projectionMat);
 
   for (size_t i = 0; i < triangles.size(); i++) {
     /* Transform the triangle to camera space */
@@ -128,7 +143,7 @@ void Draw(screen* screen) {
 
     vector<Vertex> clippedVertices;
 
-    clipTriangle(transformedTriangle, clippedVertices);
+    ClipTriangle(transformedTriangle, clippedVertices);
 
     // TODO: Convert polygons to triangles
 
@@ -137,7 +152,7 @@ void Draw(screen* screen) {
   }
 }
 
-void clipTriangle(Triangle triangle, vector<Vertex>& inVertices) {
+void ClipTriangle(Triangle triangle, vector<Vertex>& inVertices) {
   float maxX = SCREEN_WIDTH/2 - CLIP_OFFSET, maxY = SCREEN_HEIGHT/2 - CLIP_OFFSET;
   vector<Vertex> clipBuffer;
   inVertices.clear();
@@ -148,28 +163,28 @@ void clipTriangle(Triangle triangle, vector<Vertex>& inVertices) {
   /* Project (already transformed) vertices into Homogenous space */
   for (size_t i = 0; i < vertices.size(); i++) {
     Vertex homogenousCoord = vertices[i];
-    projectToHomogenous(vertices[i], projectionMat, homogenousCoord);
+    ProjectToHomogenous(vertices[i], projectionMat, homogenousCoord);
     clipBuffer.push_back(homogenousCoord);
     // std::cout<<glm::to_string(homogenousCoord.position)<<std::endl;
   }
 
   /* Clip to each plane in turn, maintaining a buffer of clipped vertices */
-  clipHomogenousVerticesToPlane(clipBuffer, X, maxX, true);                 /* Right  */
-  clipHomogenousVerticesToPlane(clipBuffer, X, maxX, false);                /* Left   */
-  clipHomogenousVerticesToPlane(clipBuffer, Y, maxY, true);                 /* Top    */
-  clipHomogenousVerticesToPlane(clipBuffer, Y, maxY, false);                /* Bottom */
-  clipHomogenousVerticesToPlane(clipBuffer, Z, NEAR_CLIP_THRESHOLD, false); /* Near   */
-  clipHomogenousVerticesToPlane(clipBuffer, Z, FAR_CLIP_THRESHOLD, true);   /* Far    */
+  ClipHomogenousVerticesToPlane(clipBuffer, X, maxX, true);                 /* Right  */
+  ClipHomogenousVerticesToPlane(clipBuffer, X, maxX, false);                /* Left   */
+  ClipHomogenousVerticesToPlane(clipBuffer, Y, maxY, true);                 /* Top    */
+  ClipHomogenousVerticesToPlane(clipBuffer, Y, maxY, false);                /* Bottom */
+  ClipHomogenousVerticesToPlane(clipBuffer, Z, NEAR_CLIP_THRESHOLD, false); /* Near   */
+  ClipHomogenousVerticesToPlane(clipBuffer, Z, FAR_CLIP_THRESHOLD, true);   /* Far    */
 
   /* Flatten all vertices in the buffer (set their w component to 1) */
   for (size_t i = 0; i < clipBuffer.size(); i++) {
     Vertex flattenedCoord = clipBuffer[i];
-    homogenousFlatten(clipBuffer[i], flattenedCoord);
+    HomogenousFlatten(clipBuffer[i], flattenedCoord);
     inVertices.push_back(flattenedCoord);
   }
 }
 
-void clipHomogenousVerticesToPlane(vector<Vertex>& clipBuffer, Axis axis, float maxVal, bool pos) {
+void ClipHomogenousVerticesToPlane(vector<Vertex>& clipBuffer, Axis axis, float maxVal, bool pos) {
   vector<Vertex> homogenousVertices = clipBuffer;
   size_t vs = homogenousVertices.size();
   clipBuffer.clear();
@@ -179,8 +194,8 @@ void clipHomogenousVerticesToPlane(vector<Vertex>& clipBuffer, Axis axis, float 
     Vertex nxtVertex = homogenousVertices[(i + 1) % vs];
 
     /* Check whether current and next vertices require clipping */
-    bool isCurIn = pos ? isInsidePos(curVertex, axis, maxVal) : isInsideNeg(curVertex, axis, maxVal);
-    bool isNxtIn = pos ? isInsidePos(nxtVertex, axis, maxVal) : isInsideNeg(nxtVertex, axis, maxVal);
+    bool isCurIn = pos ? IsInsidePos(curVertex, axis, maxVal) : IsInsideNeg(curVertex, axis, maxVal);
+    bool isNxtIn = pos ? IsInsidePos(nxtVertex, axis, maxVal) : IsInsideNeg(nxtVertex, axis, maxVal);
 
     /* If the current vertex does not require clipping, push it unchanged */
     if (isCurIn) clipBuffer.push_back(curVertex);
@@ -189,31 +204,31 @@ void clipHomogenousVerticesToPlane(vector<Vertex>& clipBuffer, Axis axis, float 
     if ((isCurIn && !isNxtIn) || (!isCurIn && isNxtIn)) {
       Vertex newVertex;
       float val = (axis == Z) ? maxVal : (pos ? maxVal : -maxVal);
-      calcIntersection(curVertex, nxtVertex, newVertex, axis, val);
+      CalculateIntersection(curVertex, nxtVertex, newVertex, axis, val);
       clipBuffer.push_back(newVertex);
     }
   }
 }
 
 /* Flattens a homogenous vertex (sets w to 1) */
-void homogenousFlatten(Vertex homogenousVertex, Vertex& flatVertex) {
+void HomogenousFlatten(Vertex homogenousVertex, Vertex& flatVertex) {
   flatVertex = homogenousVertex;
   flatVertex.position.w = 1;
 }
 
 /* Performs a homogenous divide on a vertex, projecting to the 3D plane w = 1 */
-void homogenousDivide(Vertex homogenousVertex, Vertex& projectedVertex) {
+void HomogenousDivide(Vertex homogenousVertex, Vertex& projectedVertex) {
   projectedVertex = homogenousVertex;
   projectedVertex.position = (1/homogenousVertex.position.w) * homogenousVertex.position;
 }
 
 /* Projects a 3D point into homogenous space */
-void projectToHomogenous(Vertex vertex, mat4 proj, Vertex& projectedVertex) {
+void ProjectToHomogenous(Vertex vertex, mat4 proj, Vertex& projectedVertex) {
   projectedVertex = vertex;
   projectedVertex.position = proj * vertex.position;
 }
 
-void calcIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVal) {
+void CalculateIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVal) {
   float t;
 
   if (axis == Z) {
@@ -226,15 +241,15 @@ void calcIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVal) {
   c.position = a.position + t * (b.position - a.position);
 }
 
-bool isInsidePos(Vertex vertex, Axis axis, float maxVal) {
+bool IsInsidePos(Vertex vertex, Axis axis, float maxVal) {
   return (axis == Z) ? vertex.position.z <= maxVal : (vertex.position[axis] <= (vertex.position.w * maxVal));
 }
 
-bool isInsideNeg(Vertex vertex, Axis axis, float maxVal) {
+bool IsInsideNeg(Vertex vertex, Axis axis, float maxVal) {
   return (axis == Z) ? vertex.position.z >= maxVal : (vertex.position[axis] >= (vertex.position.w * -maxVal));
 }
 
-bool isWithinScreenBounds(Pixel p) {
+bool IsWithinScreenBounds(Pixel p) {
   return p.x > 0 && p.x < SCREEN_WIDTH && p.y > 0 && p.y < SCREEN_HEIGHT;
 }
 
@@ -327,7 +342,7 @@ void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vect
       Pixel p = pixels[j];
       if (p.zinv > depthBuffer[p.y][p.x]) {
         depthBuffer[p.y][p.x] = p.zinv;
-        if (isWithinScreenBounds(p)) PutPixelSDL(screen, p.x, p.y, colour);
+        if (IsWithinScreenBounds(p)) PutPixelSDL(screen, p.x, p.y, colour);
       }
     }
   }
@@ -352,6 +367,15 @@ void DrawClipOffset(screen* screen, bool fillOutline) {
   }
 }
 
+void DrawDepthBuffer(screen* screen) {
+  for (int y = 0; y < SCREEN_HEIGHT; y++) {
+    for (int x = 0; x < SCREEN_WIDTH; x++) {
+      vec3 colour = vec3(depthBuffer[y][x], depthBuffer[y][x], depthBuffer[y][x]);
+      PutPixelSDL(screen, x, y, colour);
+    }
+  }
+}
+
 void DrawLineSDL(screen* screen, Pixel a, Pixel b, vec3 colour) {
   ivec2 delta = ivec2(glm::abs(a.x - b.x), glm::abs(a.y - b.y));
   int pixels = glm::max(delta.x, delta.y) + 1;
@@ -360,7 +384,7 @@ void DrawLineSDL(screen* screen, Pixel a, Pixel b, vec3 colour) {
 
   for (int px = 0; px < pixels; px++) {
     Pixel pixel = line[px];
-    if (isWithinScreenBounds(pixel)) PutPixelSDL(screen, pixel.x, pixel.y, colour);
+    if (IsWithinScreenBounds(pixel)) PutPixelSDL(screen, pixel.x, pixel.y, colour);
   }
 }
 
@@ -377,11 +401,11 @@ void DrawPolygonEdges(screen* screen, const vector<Vertex>& vertices, vec3 colou
   }
 }
 
-void getProjectionMatrix(mat4 &mat) {
+void UpdateProjectionMatrix(mat4 &mat) {
   mat = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 1/focalLength), vec4(0, 0, 0, 0));
 }
 
-void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
+void UpdateRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 	R[0][0] = cos(thetaY) * cos(thetaZ);
 	R[0][1] = -cos(thetaX) * sin(thetaZ) + sin(thetaX) * sin(thetaY) * cos(thetaZ);
 	R[0][2] = sin(thetaX) * sin(thetaZ) + cos(thetaX) * sin(thetaY) * cos(thetaZ);
@@ -404,26 +428,44 @@ void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T) {
   T = m2 * m3;
 }
 
-void moveCameraRight(int direction, float distance) {
+void MoveCameraRight(int direction, float distance) {
 	vec4 right(rotationMat[0][0], rotationMat[1][0], rotationMat[2][0], 0);
 	cameraPos += direction * distance * right;
 }
 
-void moveCameraUp(int direction, float distance) {
+void MoveCameraUp(int direction, float distance) {
 	vec4 up(rotationMat[0][1], rotationMat[1][1], rotationMat[2][1], 0);
 	cameraPos += direction * distance * up;
 }
 
-void moveCameraForward(int direction, float distance) {
+void MoveCameraForward(int direction, float distance) {
 	vec4 forward(rotationMat[0][2], rotationMat[1][2], rotationMat[2][2], 0);
 	cameraPos += direction * distance * forward;
 }
 
+void LookAt(vec3 toPos) {
+	vec3 fromPos = vec3(cameraPos);
+
+	vec3 forward = normalize(toPos - fromPos);
+
+  pitch = asin(-forward.y);
+  yaw = atan2(forward.x, forward.z);
+
+  UpdateRotationMatrix(pitch, yaw, 0, rotationMat);
+}
+
+void ResetCameraPosition() {
+  cameraPos = defaultCameraPos;
+  pitch = 0;
+  yaw = 0;
+}
+
 bool Update() {
   static int t = SDL_GetTicks();
+
   /* Compute frame time */
   int t2 = SDL_GetTicks();
-  float dt = float(t2-t);
+  float dt = float(t2 - t);
   t = t2;
 
   std::cout << "Render time: " << dt << " ms. --------------------------------------------" << std::endl;
@@ -449,31 +491,29 @@ bool Update() {
         break;
       case SDLK_r:
         /* Look-At function, points camera to 0,0,0 */
-        // lookAt(ctw);
+        LookAt(vec3(0, 0, 0));
         break;
       case SDLK_t:
-        // Reset camera position
-        cameraPos = defaultCameraPos;
-        pitch = 0;
-        yaw = 0;
+        /* Reset to default camera position */
+        ResetCameraPosition();
         break;
       case SDLK_w:
-        moveCameraUp(-1, 0.25);
+        MoveCameraUp(-1, 0.25);
         break;
       case SDLK_s:
-        moveCameraUp(1, 0.25);
+        MoveCameraUp(1, 0.25);
         break;
       case SDLK_a:
-        moveCameraRight(-1, 0.25);
+        MoveCameraRight(-1, 0.25);
         break;
       case SDLK_d:
-        moveCameraRight(1, 0.25);
+        MoveCameraRight(1, 0.25);
         break;
       case SDLK_EQUALS:
-        moveCameraForward(1, 0.25);
+        MoveCameraForward(1, 0.25);
         break;
       case SDLK_MINUS:
-        moveCameraForward(-1, 0.25);
+        MoveCameraForward(-1, 0.25);
         break;
       case SDLK_ESCAPE:
         return false;

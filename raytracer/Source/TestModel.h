@@ -62,6 +62,18 @@ public:
 	}
 };
 
+class Material {
+public:
+	glm::vec3 diffuseRef;
+	glm::vec3 specRef;
+
+	Material( glm::vec3 diffuseRef, glm::vec3 specRef)
+		: diffuseRef(diffuseRef), specRef(specRef)
+	{
+
+	}
+};
+
 // Loads the Cornell Box. It is scaled to fill the volume:
 // -1 <= x <= +1
 // -1 <= y <= +1
@@ -83,7 +95,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	lights.clear();
 	lights.reserve( 1 );
 
-	lights.push_back( LightSource( 2, vec4( 0, -0.5, -0.7, 1.0 ), vec4(0, -1, 0, 1), 0.2, 0.2));
+	lights.push_back( LightSource( 30, vec4( 0, -0.4, -0.7, 1.0 ), vec4(0, -1, 0, 1), 0.2, 0.2));
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
@@ -104,20 +116,20 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	vec4 H(0,L,L,1);
 
 	// Floor:
-	triangles.push_back( Triangle( C, B, A, green ) );
-	triangles.push_back( Triangle( C, D, B, green ) );
+	triangles.push_back( Triangle( C, B, A, white ) );
+	triangles.push_back( Triangle( C, D, B, white ) );
 
 	// Left wall
-	triangles.push_back( Triangle( A, E, C, purple ) );
-	triangles.push_back( Triangle( C, E, G, purple ) );
+	triangles.push_back( Triangle( A, E, C, red ) );
+	triangles.push_back( Triangle( C, E, G, red ) );
 
 	// Right wall
-	triangles.push_back( Triangle( F, B, D, yellow ) );
-	triangles.push_back( Triangle( H, F, D, yellow ) );
+	triangles.push_back( Triangle( F, B, D, blue ) );
+	triangles.push_back( Triangle( H, F, D, blue ) );
 
 	// Ceiling
-	triangles.push_back( Triangle( E, F, G, cyan ) );
-	triangles.push_back( Triangle( F, H, G, cyan ) );
+	triangles.push_back( Triangle( E, F, G, white ) );
+	triangles.push_back( Triangle( F, H, G, white ) );
 
 	// Back wall
 	triangles.push_back( Triangle( G, D, C, white ) );
@@ -137,24 +149,24 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	H = vec4( 82,165,225,1);
 
 	// Front
-	triangles.push_back( Triangle(E,B,A,red) );
-	triangles.push_back( Triangle(E,F,B,red) );
+	triangles.push_back( Triangle(E,B,A,white) );
+	triangles.push_back( Triangle(E,F,B,white) );
 
 	// Front
-	triangles.push_back( Triangle(F,D,B,red) );
-	triangles.push_back( Triangle(F,H,D,red) );
+	triangles.push_back( Triangle(F,D,B,white) );
+	triangles.push_back( Triangle(F,H,D,white) );
 
 	// BACK
-	triangles.push_back( Triangle(H,C,D,red) );
-	triangles.push_back( Triangle(H,G,C,red) );
+	triangles.push_back( Triangle(H,C,D,white) );
+	triangles.push_back( Triangle(H,G,C,white) );
 
 	// LEFT
-	triangles.push_back( Triangle(G,E,C,red) );
-	triangles.push_back( Triangle(E,A,C,red) );
+	triangles.push_back( Triangle(G,E,C,white) );
+	triangles.push_back( Triangle(E,A,C,white) );
 
 	// TOP
-	triangles.push_back( Triangle(G,F,E,red) );
-	triangles.push_back( Triangle(G,H,F,red) );
+	triangles.push_back( Triangle(G,F,E,white) );
+	triangles.push_back( Triangle(G,H,F,white) );
 
 	// ---------------------------------------------------------------------------
 	// Tall block
@@ -170,24 +182,24 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	H = vec4(314,330,456,1);
 
 	// Front
-	triangles.push_back( Triangle(E,B,A,blue) );
-	triangles.push_back( Triangle(E,F,B,blue) );
+	triangles.push_back( Triangle(E,B,A,white) );
+	triangles.push_back( Triangle(E,F,B,white) );
 
 	// Front
-	triangles.push_back( Triangle(F,D,B,blue) );
-	triangles.push_back( Triangle(F,H,D,blue) );
+	triangles.push_back( Triangle(F,D,B,white) );
+	triangles.push_back( Triangle(F,H,D,white) );
 
 	// BACK
-	triangles.push_back( Triangle(H,C,D,blue) );
-	triangles.push_back( Triangle(H,G,C,blue) );
+	triangles.push_back( Triangle(H,C,D,white) );
+	triangles.push_back( Triangle(H,G,C,white) );
 
 	// LEFT
-	triangles.push_back( Triangle(G,E,C,blue) );
-	triangles.push_back( Triangle(E,A,C,blue) );
+	triangles.push_back( Triangle(G,E,C,white) );
+	triangles.push_back( Triangle(E,A,C,white) );
 
 	// TOP
-	triangles.push_back( Triangle(G,F,E,blue) );
-	triangles.push_back( Triangle(G,H,F,blue) );
+	triangles.push_back( Triangle(G,F,E,white) );
+	triangles.push_back( Triangle(G,H,F,white) );
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3

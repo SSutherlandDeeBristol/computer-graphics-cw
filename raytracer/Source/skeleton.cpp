@@ -20,6 +20,8 @@ SDL_Event event;
 #define SCREEN_HEIGHT 300
 #define FULLSCREEN_MODE false
 
+#define NUM_PHOTONS 5000
+
 struct Intersection {
   vec4 position;
   float distance;
@@ -46,6 +48,8 @@ const float shadowBiasThreshold = 0.001f;
 std::vector<Triangle> triangles;
 std::vector<LightSource> lights;
 
+std::vector<Photon> photonMap;
+
 mat4 R;
 float yaw = 0;
 float pitch = 0;
@@ -63,10 +67,16 @@ void moveCameraRight(int direction);
 void moveCameraUp(int direction);
 void moveCameraForward(int direction);
 void lookAt(mat4& ctw);
+void emitPhotons();
+void emitPhotonsFromLight(LightSource &light, int numPhotons);
+void tracePhoton(float power, vec4 start, vec4 direction, Photon &photon);
 
 int main(int argc, char* argv[]) {
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
   LoadTestModel(triangles, lights);
+
+  // Populate the photon map
+  emitPhotons();
 
   while (Update()) {
     Draw(screen);
@@ -103,6 +113,47 @@ void Draw(screen* screen) {
 
       PutPixelSDL(screen, x, y, reflectedLight);
     }
+  }
+}
+
+void emitPhotons() {
+  photonMap.reserve( NUM_PHOTONS );
+
+  int numLights = lights.size();
+
+  cout << "-------------------" << endl;
+  cout << "emitting photons from lights" << endl;
+
+  for (int i = 0; i < numLights; i++) {
+    emitPhotonsFromLight(lights[i], NUM_PHOTONS / numLights);
+  }
+
+  cout << "finished emitting photons from lights" << endl;
+  cout << "-------------------" << endl;
+}
+
+void emitPhotonsFromLight(LightSource &light, int numPhotons) {
+
+  for(int i = 0; i < numPhotons; i++) {
+    vec4 direction = vec4(1,1,1,1);
+
+    while ((pow(direction.x, 2) + pow(direction.y, 2) + pow(direction.z, 2)) > 1) {
+      direction.x = ((float) rand() / (RAND_MAX)) * 2 - 1;
+      direction.y = ((float) rand() / (RAND_MAX)) * 2 - 1;
+      direction.z = ((float) rand() / (RAND_MAX)) * 2 - 1;
+    }
+
+    Photon p;
+    tracePhoton(light.watts / numPhotons, light.position, direction, p);
+  }
+}
+
+void tracePhoton(float power, vec4 start, vec4 direction, Photon &photon) {
+
+  Intersection intersection;
+
+  if (ClosestIntersection(start, direction, triangles, intersection)) {
+
   }
 }
 

@@ -5,6 +5,8 @@
 #include "TestModelH.h"
 #include <stdint.h>
 #include "glm/gtx/string_cast.hpp" // std::cout<<glm::to_string(hello)<<std::endl;
+#include <math.h>
+#include "limits"
 
 using namespace std;
 using glm::ivec2;
@@ -13,6 +15,17 @@ using glm::vec3;
 using glm::vec4;
 using glm::mat3;
 using glm::mat4;
+
+struct Pixel {
+  int x;
+  int y;
+  float zinv;
+  vec4 pos3d;
+};
+
+struct Vertex {
+  vec4 position;
+};
 
 SDL_Event event;
 
@@ -56,6 +69,17 @@ struct Vertex {
 };
 
 float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
+
+vec3 currentColor;
+vec4 currentNormal;
+vec3 currentReflectance;
+
+float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
+
+vec4 defaultLightPos(0,-0.4,-0.3, 1);
+vec4 lightPos(0,-0.3,-0.3, 1);
+vec3 lightPower = 11.0f * vec3(1, 1, 1);
+vec3 indirectLightPowerPerArea = 0.5f*vec3(1, 1, 1);
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -467,6 +491,7 @@ void UpdateRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T) {
   mat4 m1 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), camPos);
   mat4 m2 = mat4(rot);
+
   mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
   m1[3][3] = 1; m2[3][3] = 1; m3[3][3] = 1;
   // T = m1 * m2 * m3;
@@ -542,7 +567,6 @@ bool Update() {
       case SDLK_p:      lightPos.y += 0.2; break;
       case SDLK_ESCAPE: return false;
       }
-    }
   }
 
   return true;

@@ -40,11 +40,14 @@ enum Axis {X = 0, Y = 1, Z = 2, W = 3};
 struct Pixel {
   int x;
   int y;
+  float zinv;
 };
 
 struct Vertex {
   vec4 position;
 };
+
+float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -100,11 +103,17 @@ int main(int argc, char* argv[]) {
 void VertexShader(const Vertex& v, Pixel& p) {
   p.x = focalLength * (v.position.x / v.position.z) + SCREEN_WIDTH / 2;
   p.y = focalLength * (v.position.y / v.position.z) + SCREEN_HEIGHT / 2;
+  p.zinv = 1 / v.position.z;
 }
 
 void Draw(screen* screen) {
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+
+  /* Reset Z-buffer values */
+  for(int y = 0; y < SCREEN_HEIGHT; y++)
+    for(int x = 0; x < SCREEN_WIDTH; x++)
+      depthBuffer[y][x] = 0;
 
   getRotationMatrix(pitch, yaw, 0, rotationMat);
   TransformationMatrix(cameraPos, rotationMat, transformMat);
@@ -123,8 +132,8 @@ void Draw(screen* screen) {
 
     // TODO: Convert polygons to triangles
 
-    DrawPolygonEdges(screen, clippedVertices, triangles[i].color); // Draw outlines
-    // DrawPolygon(screen, clippedVertices, triangles[i].color); // Draw filled
+    // DrawPolygonEdges(screen, clippedVertices, triangles[i].color); // Draw outlines
+    DrawPolygon(screen, clippedVertices, triangles[i].color); // Draw filled
   }
 }
 
@@ -141,7 +150,7 @@ void clipTriangle(Triangle triangle, vector<Vertex>& inVertices) {
     Vertex homogenousCoord = vertices[i];
     projectToHomogenous(vertices[i], projectionMat, homogenousCoord);
     clipBuffer.push_back(homogenousCoord);
-    std::cout<<glm::to_string(homogenousCoord.position)<<std::endl;
+    // std::cout<<glm::to_string(homogenousCoord.position)<<std::endl;
   }
 
   /* Clip to each plane in turn, maintaining a buffer of clipped vertices */
@@ -231,18 +240,18 @@ bool isWithinScreenBounds(Pixel p) {
 
 void Interpolate(Pixel a, Pixel b, vector<Pixel>& result) {
   int size = result.size();
-  vector<float> x(size), y(size);
+  vector<float> x(size), y(size), zinv(size);
 
-  Interpolate(a.x, b.x, x); Interpolate(a.y, b.y, y);
+  Interpolate(a.x, b.x, x); Interpolate(a.y, b.y, y); Interpolate(a.zinv, b.zinv, zinv);
 
   for (int i = 0; i < size; i++) {
-    result[i].x = x[i]; result[i].y = y[i];
+    result[i].x = round(x[i]); result[i].y = round(y[i]); result[i].zinv = zinv[i];
   }
 }
 
 void Interpolate(float a, float b, vector<float>& result) {
   int size = result.size();
-  float dist = b - a, incr = dist / (float) max(1, (size - 1));
+  float dist = b - a, incr = dist / float(max(1, (size - 1)));
 
   for (int i = 0; i < size; i++) result[i] = a + (incr * i);
 }
@@ -315,7 +324,11 @@ void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vect
     Interpolate(leftPixels[i], rightPixels[i], pixels);
 
     for (size_t j = 0; j < pixels.size(); j++) {
-      if (isWithinScreenBounds(pixels[j])) PutPixelSDL(screen, pixels[j].x, pixels[j].y, colour);
+      Pixel p = pixels[j];
+      if (p.zinv > depthBuffer[p.y][p.x]) {
+        depthBuffer[p.y][p.x] = p.zinv;
+        if (isWithinScreenBounds(p)) PutPixelSDL(screen, p.x, p.y, colour);
+      }
     }
   }
 }
@@ -392,17 +405,17 @@ void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T) {
 }
 
 void moveCameraRight(int direction, float distance) {
-	vec4 right(rotationMat[0][0], rotationMat[0][1], rotationMat[0][2], 0);
+	vec4 right(rotationMat[0][0], rotationMat[1][0], rotationMat[2][0], 0);
 	cameraPos += direction * distance * right;
 }
 
 void moveCameraUp(int direction, float distance) {
-	vec4 up(rotationMat[1][0], rotationMat[1][1], rotationMat[1][2], 0);
+	vec4 up(rotationMat[0][1], rotationMat[1][1], rotationMat[2][1], 0);
 	cameraPos += direction * distance * up;
 }
 
 void moveCameraForward(int direction, float distance) {
-	vec4 forward(rotationMat[2][0], rotationMat[2][1], rotationMat[2][2], 0);
+	vec4 forward(rotationMat[0][2], rotationMat[1][2], rotationMat[2][2], 0);
 	cameraPos += direction * distance * forward;
 }
 

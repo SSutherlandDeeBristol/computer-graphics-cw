@@ -28,6 +28,14 @@ std::vector<Triangle> triangles;
 const float focalLength = SCREEN_HEIGHT;
 const vec4 defaultCameraPos(0.0, 0.0, -3.001, 1.0);
 
+vec4 lightPos(0,-0.3,-0.3, 1);
+vec3 lightPower = 11.0f * vec3(1, 1, 1);
+vec3 indirectLightPowerPerArea = 0.5f*vec3(1, 1, 1);
+
+vec3 currentColor;
+vec4 currentNormal;
+vec3 currentReflectance;
+
 vec4 cameraPos(0, 0, -3.001, 1.0);
 mat3 rotationMat;
 mat4 transformMat;
@@ -41,6 +49,7 @@ struct Pixel {
   int x;
   int y;
   float zinv;
+  vec4 pos3d;
 };
 
 struct Vertex {
@@ -73,6 +82,7 @@ void UpdateRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void UpdateProjectionMatrix(mat4 &mat);
 
 void VertexShader(const Vertex& v, Pixel& p);
+void PixelShader(screen *screen, const Pixel& p);
 void DrawClipOffset(screen* screen, bool fillOutline);
 void DrawDepthBuffer(screen* screen);
 void DrawLineSDL(screen* surface, Pixel a, Pixel b, vec3 colour);
@@ -119,6 +129,28 @@ void VertexShader(const Vertex& v, Pixel& p) {
   p.x = focalLength * (v.position.x / v.position.z) + SCREEN_WIDTH / 2;
   p.y = focalLength * (v.position.y / v.position.z) + SCREEN_HEIGHT / 2;
   p.zinv = 1 / v.position.z;
+  p.pos3d = v.position;
+}
+
+void PixelShader(screen *screen, const Pixel& p) {
+  if (p.zinv > depthBuffer[p.y][p.x]) {
+    depthBuffer[p.y][p.x] = p.zinv;
+
+    vec4 rVec = lightPos - p.pos3d;
+    float r = distance(lightPos, p.pos3d);
+    vec4 rHat = normalize(rVec);
+    vec4 nHat = normalize(currentNormal);
+
+    float A = float(4 * M_PI) * pow(r,2);
+
+    vec3 B = (lightPower * max(dot(rHat, nHat), 0.0f));
+
+    vec3 D = B / A;
+
+    vec3 R = currentReflectance * (D + indirectLightPowerPerArea);
+
+    if (IsWithinScreenBounds(p)) PutPixelSDL(screen, p.x, p.y, R * currentColor);
+  }
 }
 
 void Draw(screen* screen) {
@@ -144,6 +176,10 @@ void Draw(screen* screen) {
     vector<Vertex> clippedVertices;
 
     ClipTriangle(transformedTriangle, clippedVertices);
+
+    currentColor = triangles[i].color;
+    currentNormal = triangles[i].normal;
+    currentReflectance = vec3(1.2,1.2,1.2);
 
     // TODO: Convert polygons to triangles
 
@@ -257,10 +293,18 @@ void Interpolate(Pixel a, Pixel b, vector<Pixel>& result) {
   int size = result.size();
   vector<float> x(size), y(size), zinv(size);
 
+  vector<float> x3d(size), y3d(size), z3d(size);
+
   Interpolate(a.x, b.x, x); Interpolate(a.y, b.y, y); Interpolate(a.zinv, b.zinv, zinv);
+
+  Interpolate(a.pos3d.x, b.pos3d.x, x3d);
+  Interpolate(a.pos3d.y, b.pos3d.y, y3d);
+  Interpolate(a.pos3d.z, b.pos3d.z, z3d);
 
   for (int i = 0; i < size; i++) {
     result[i].x = round(x[i]); result[i].y = round(y[i]); result[i].zinv = zinv[i];
+
+    result[i].pos3d = vec4(x3d[i], y3d[i], z3d[i], 1);
   }
 }
 
@@ -339,11 +383,7 @@ void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vect
     Interpolate(leftPixels[i], rightPixels[i], pixels);
 
     for (size_t j = 0; j < pixels.size(); j++) {
-      Pixel p = pixels[j];
-      if (p.zinv > depthBuffer[p.y][p.x]) {
-        depthBuffer[p.y][p.x] = p.zinv;
-        if (IsWithinScreenBounds(p)) PutPixelSDL(screen, p.x, p.y, colour);
-      }
+      PixelShader(screen, pixels[j]);
     }
   }
 }

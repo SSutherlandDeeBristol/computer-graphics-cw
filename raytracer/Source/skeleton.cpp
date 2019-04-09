@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include "limits"
 #include <math.h>
+#include "glm/gtx/string_cast.hpp"
+#include <tuple>
 
 using namespace std;
 using glm::vec3;
@@ -20,7 +22,7 @@ SDL_Event event;
 #define SCREEN_HEIGHT 300
 #define FULLSCREEN_MODE false
 
-#define NUM_PHOTONS 5000
+#define NUM_PHOTONS 10000
 
 struct Intersection {
   vec4 position;
@@ -31,7 +33,7 @@ struct Intersection {
 struct Photon {
   vec4 position;
   vec3 power;
-  float phi, theta;
+  vec4 direction;
   int flag;
 };
 
@@ -69,23 +71,30 @@ void moveCameraForward(int direction);
 void lookAt(mat4& ctw);
 void emitPhotons();
 void emitPhotonsFromLight(LightSource &light, int numPhotons);
-void tracePhoton(float power, vec4 start, vec4 direction, Photon &photon);
+bool tracePhoton(vec3 power, vec4 start, vec4 direction);
+vec3 calculateRadiance(Intersection& intersection, int numNearest);
+void drawPhotons(screen* screen);
 
 int main(int argc, char* argv[]) {
-  screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+  screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+  screen *photonscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+
   LoadTestModel(triangles, lights);
 
   // Populate the photon map
   emitPhotons();
 
   while (Update()) {
-    Draw(screen);
-    SDL_Renderframe(screen);
+    Draw(mainscreen);
+    SDL_Renderframe(mainscreen);
+    drawPhotons(photonscreen);
+    SDL_Renderframe(photonscreen);
   }
 
-  SDL_SaveImage(screen, "screenshot.bmp");
+  SDL_SaveImage(mainscreen, "screenshot.bmp");
 
-  KillSDL(screen);
+  KillSDL(mainscreen);
+  KillSDL(photonscreen);
 
 	return 0;
 }
@@ -105,15 +114,78 @@ void Draw(screen* screen) {
 			vec3 colour(0.0, 0.0, 0.0); // The original colour of the triangle
 
       if (ClosestIntersection(cameraPos, d, triangles, intersection)) {
-				directLight = DirectLight(intersection);
-				colour = triangles[intersection.triangleIndex].color;
-
-				reflectedLight = colour * (directLight + indirectLight);
+        reflectedLight = calculateRadiance(intersection, 50);
+        //reflectedLight = triangles[intersection.triangleIndex].color;
       }
 
       PutPixelSDL(screen, x, y, reflectedLight);
     }
   }
+}
+
+void drawPhotons(screen* screen) {
+  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+
+  for (int i = 0; i < photonMap.size(); i++) {
+    Photon p = photonMap[i];
+
+    vec4 pos = R * p.position - cameraPos;
+
+    int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
+    int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
+    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power);
+  }
+
+}
+
+vec3 calculateRadiance(Intersection& intersection, int numNearest) {
+  vector<int> nearestPhotonsIndex;
+  vector<float> nearestPhotonsDist;
+  vec3 accumPower;
+
+  float dist = numeric_limits<float>::max();
+
+  for (int i = 0; i < photonMap.size(); i++) {
+    vec4 it = intersection.position;
+    vec4 phop = photonMap[i].position;
+
+    float distVec = sqrt(pow(it.x - phop.x, 2) + pow(it.y - phop.y, 2) + pow(it.z - phop.z, 2));
+
+    if (distVec < dist) {
+      accumPower = photonMap[i].power;
+      dist = distVec;
+    }
+  }
+
+    //if (distVec < 0.05) accumPower = photonMap[i].power;
+
+  //   if (nearestPhotonsIndex.size() < numNearest) {
+  //     nearestPhotonsIndex.push_back(i);
+  //     nearestPhotonsDist.push_back(distVec);
+  //   } else {
+  //     int furthestIndex = 0;
+  //     float dist = -numeric_limits<float>::max();
+  //     for (int j = 0; j < numNearest; j++) {
+  //       if (nearestPhotonsDist[j] > dist) {
+  //         dist = nearestPhotonsDist[j];
+  //         furthestIndex = j;
+  //       }
+  //     }
+  //
+  //     if (distVec > dist) {
+  //       nearestPhotonsIndex[furthestIndex] = i;
+  //       nearestPhotonsDist[furthestIndex] = distVec;
+  //     }
+  //   }
+  // }
+
+  // for (int i = 0; i < numNearest; i++) {
+  //   accumPower += photonMap[nearestPhotonsIndex[i]].power;
+  // }
+  //
+  // return accumPower / (float) numNearest;
+
+  return accumPower;
 }
 
 void emitPhotons() {
@@ -133,6 +205,7 @@ void emitPhotons() {
 }
 
 void emitPhotonsFromLight(LightSource &light, int numPhotons) {
+  int numIntersections = 0;
 
   for(int i = 0; i < numPhotons; i++) {
     vec4 direction = vec4(1,1,1,1);
@@ -143,18 +216,61 @@ void emitPhotonsFromLight(LightSource &light, int numPhotons) {
       direction.z = ((float) rand() / (RAND_MAX)) * 2 - 1;
     }
 
-    Photon p;
-    tracePhoton(light.watts / numPhotons, light.position, direction, p);
+    direction.w = 1;
+
+    if (tracePhoton((light.watts / numPhotons) * light.color, light.position, normalize(direction))) numIntersections++;
   }
+
+  cout << "number of photon intersections: " << numIntersections << endl;
 }
 
-void tracePhoton(float power, vec4 start, vec4 direction, Photon &photon) {
-
+bool tracePhoton(vec3 power, vec4 start, vec4 direction) {
   Intersection intersection;
 
   if (ClosestIntersection(start, direction, triangles, intersection)) {
+    Triangle triangle = triangles[intersection.triangleIndex];
 
+    Material material = triangle.material;
+
+    vec3 diffuseRef = material.diffuseRef;
+    vec3 specRef = material.specRef;
+
+    // Probability of reflection
+    float Pr = max(diffuseRef.x + specRef.x, max(diffuseRef.y + specRef.y, diffuseRef.z + specRef.z));
+
+    // Probability of diffuse reflection
+    float Pd = Pr * ((diffuseRef.x + diffuseRef.y + diffuseRef.z) /
+                      (diffuseRef.x + diffuseRef.y + diffuseRef.z + specRef.x + specRef.y + specRef.z));
+
+    // Probability of specular reflection
+    float Ps = Pr - Pd;
+
+    float rnd = ((float) rand() / (RAND_MAX));
+
+    if (rnd < Pd) {
+      //Diffuse reflection
+
+      vec4 reflectionDir = normalize(2 * dot(triangle.normal, direction) * triangle.normal - direction);
+      tracePhoton(power, intersection.position, reflectionDir);
+    } else if (rnd < Ps + Pd) {
+      // Specular reflection
+
+      vec4 reflectionDir = normalize(2 * dot(triangle.normal, direction) * triangle.normal - direction);
+      tracePhoton(power, intersection.position, reflectionDir);
+    } else {
+      // Absorbtion
+
+      Photon p;
+      p.position = intersection.position;
+      p.direction = direction;
+      p.power = triangle.color;
+      photonMap.push_back(p);
+    }
+
+    return true;
   }
+
+  return false;
 }
 
 bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection) {
@@ -317,9 +433,7 @@ bool Update() {
   t = t2;
 
   std::cout << "Render time: " << dt << " ms." << std::endl;
-
-	// std::cout << "cx: " << cameraPos.x << ", cy:" << cameraPos.y << ", cz:"<< cameraPos.z << std::endl;
-
+  
 	mat4 ctw;
 
   SDL_Event e;

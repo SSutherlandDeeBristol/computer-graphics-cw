@@ -171,6 +171,7 @@ void Draw(screen* screen) {
     for (int x = 0; x < SCREEN_WIDTH; x++)
       depthBuffer[y][x] = 0;
 
+  /* Update global matrices */
   UpdateRotationMatrix(pitch, yaw, 0, rotationMat);
   TransformationMatrix(cameraPos, rotationMat, transformMat);
   UpdateProjectionMatrix(projectionMat);
@@ -182,11 +183,12 @@ void Draw(screen* screen) {
     vec4 tv2 = transformMat * triangles[i].v2;
     Triangle transformedTriangle = Triangle(tv0, tv1, tv2, triangles[i].color);
 
+    /* Clip triangle */
     vector<Vertex> clippedVertices;
-
     ClipTriangle(transformedTriangle, clippedVertices);
 
     if (TRIANGULATE) {
+      /* Triangulate and draw sub-triangles */
       vector<Triangle> triangulatedVertices;
       if (FAN) TriangulateVerticesFan(clippedVertices, triangulatedVertices, triangles[i].color);
       else TriangulateVertices(clippedVertices, triangulatedVertices, triangles[i].color);
@@ -274,6 +276,7 @@ void ProjectToHomogenous(Vertex vertex, mat4 proj, Vertex& projectedVertex) {
   projectedVertex.position = proj * vertex.position;
 }
 
+/* Calculates the point where a vector between two vertices intersect with an axis */
 void CalculateIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVal) {
   float t;
 
@@ -287,14 +290,17 @@ void CalculateIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVa
   c.position = a.position + t * (b.position - a.position);
 }
 
+/* Determines whether a vertex is within the positive bound of an axis */
 bool IsInsidePos(Vertex vertex, Axis axis, float maxVal) {
   return (axis == Z) ? vertex.position.z <= maxVal : (vertex.position[axis] <= (vertex.position.w * maxVal));
 }
 
+/* Determines whether a vertex is within the negative bound of an axis */
 bool IsInsideNeg(Vertex vertex, Axis axis, float maxVal) {
   return (axis == Z) ? vertex.position.z >= maxVal : (vertex.position[axis] >= (vertex.position.w * -maxVal));
 }
 
+/* Determines whether a pixel is within the screen bounds */
 bool IsWithinScreenBounds(Pixel p) {
   return p.x > 0 && p.x < SCREEN_WIDTH && p.y > 0 && p.y < SCREEN_HEIGHT;
 }
@@ -309,17 +315,17 @@ void TriangulateVerticesFan(vector<Vertex> vertices, vector<Triangle>& result, v
   }
 }
 
-/* Triangulates using the optimum approach */
+/* Triangulates by minimising the sum of the sub-triangle perimeters (recursive function) */
 float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour) {
-  int vertexCount = vertices.size();
+  int vertexCount = vertices.size(), lastIndex = vertexCount - 1;
   float cost = numeric_limits<float>::max();
 
   if (vertexCount < 3) return 0;
 
-  for (int v = 1; v < vertexCount - 1; v++) {
+  for (int v = 1; v < lastIndex; v++) {
     vec4 tv0 = vertices[0].position;
     vec4 tv1 = vertices[v].position;
-    vec4 tv2 = vertices[vertexCount - 1].position;
+    vec4 tv2 = vertices[lastIndex].position;
 
     Triangle currentTriangle = Triangle(tv0, tv1, tv2, colour);
 
@@ -327,7 +333,7 @@ float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec
     vector<Triangle> previousResults, nextResults;
 
     for (int i = 0; i <= v; i++) previousVertices.push_back(vertices[i]);
-    for (int i = v; i < vertexCount; i++) nextVertices.push_back(vertices[i]);
+    for (int i = v; i <= lastIndex; i++) nextVertices.push_back(vertices[i]);
 
     float costPrevious = TriangulateVertices(previousVertices, previousResults, colour);
     float costNext = TriangulateVertices(nextVertices, nextResults, colour);
@@ -342,13 +348,16 @@ float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec
       result.insert(result.end(), nextResults.begin(), nextResults.end());
     }
   }
+
   return cost;
 }
 
+/* Calculates the 'cost' of a triangle (cost is equal to perimeter) */
 float TriangleCost(Triangle triangle) {
   return distance(triangle.v0, triangle.v1) + distance(triangle.v1, triangle.v2) + distance(triangle.v2, triangle.v0);
 }
 
+/* Interpolates between two pixels */
 void InterpolatePixels(Pixel a, Pixel b, vector<Pixel>& result) {
   int size = result.size();
   vector<float> x(size), y(size), zinv(size);
@@ -373,6 +382,7 @@ void InterpolatePixels(Pixel a, Pixel b, vector<Pixel>& result) {
   }
 }
 
+/* Interpolates between two floating point values */
 void Interpolate(float a, float b, vector<float>& result) {
   int size = result.size();
   float dist = b - a, incr = dist / float(max(1, (size - 1)));

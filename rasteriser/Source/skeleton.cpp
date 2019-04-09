@@ -21,6 +21,7 @@ using glm::mat4;
 #define NEAR_CLIP_THRESHOLD 2
 #define FAR_CLIP_THRESHOLD 10
 #define TRIANGULATE true
+#define FAN false
 #define FILL true
 
 SDL_Event event;
@@ -39,6 +40,7 @@ vec4 cameraPos(0, 0, -3.001, 1.0);
 
 mat3 rotationMat; mat4 transformMat; mat4 projectionMat;
 float yaw = 0; float pitch = 0;
+float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 enum Axis {X = 0, Y = 1, Z = 2, W = 3};
 
@@ -56,7 +58,6 @@ struct Vertex {
   vec4 position;
 };
 
-float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -76,9 +77,9 @@ void CalculateIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVa
 void HomogenousFlatten(Vertex homogenousVertex, Vertex& flatVertex);
 void HomogenousDivide(Vertex homogenousVertex, Vertex& projectedVertex);
 void ProjectToHomogenous(Vertex vertex, mat4 proj, Vertex& projectedVertex);
-void TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour);
-float TriangleCost(Vertex a, Vertex b, Vertex c);
-float VertexDistance(Vertex a, Vertex b);
+void TriangulateVerticesFan(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour);
+float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour);
+float TriangleCost(Triangle triangle);
 
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T);
 void UpdateRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
@@ -99,7 +100,6 @@ void MoveCameraUp(int direction, float distance);
 void MoveCameraForward(int direction, float distance);
 void LookAt(vec3 toPos);
 void ResetCameraPosition();
-
 /* FUNCTIONS END                                                               */
 /* ----------------------------------------------------------------------------*/
 
@@ -188,13 +188,13 @@ void Draw(screen* screen) {
 
     if (TRIANGULATE) {
       vector<Triangle> triangulatedVertices;
-      TriangulateVertices(clippedVertices, triangulatedVertices, triangles[i].color);
+      if (FAN) TriangulateVerticesFan(clippedVertices, triangulatedVertices, triangles[i].color);
+      else TriangulateVertices(clippedVertices, triangulatedVertices, triangles[i].color);
 
-      for (size_t j = 0; j < triangulatedVertices.size(); j++) {
+      for (size_t j = 0; j < triangulatedVertices.size(); j++)
         DrawTriangle(screen, triangulatedVertices[j], defaultReflectance, FILL);
-      }
     } else {
-      DrawPolygon(screen, clippedVertices, triangles[i].color, triangles[i].normal, defaultReflectance, FILL); // Draw filled
+      DrawPolygon(screen, clippedVertices, triangles[i].color, triangles[i].normal, defaultReflectance, FILL);
     }
   }
 }
@@ -300,9 +300,8 @@ bool IsWithinScreenBounds(Pixel p) {
 }
 
 /* Triangulates using the fan approach */
-void TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour) {
-  int vertexCount = vertices.size();
-  for (int v = 1; v < vertexCount - 1; v++) {
+void TriangulateVerticesFan(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour) {
+  for (size_t v = 1; v < vertices.size() - 1; v++) {
     vec4 tv0 = vertices[0].position;
     vec4 tv1 = vertices[v].position;
     vec4 tv2 = vertices[v+1].position;
@@ -310,12 +309,44 @@ void TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3
   }
 }
 
-float TriangleCost(Vertex a, Vertex b, Vertex c) {
-  return VertexDistance(a, b) + VertexDistance(b, c) + VertexDistance(c, a);
+/* Triangulates using the optimum approach */
+float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour) {
+  int vertexCount = vertices.size();
+  float cost = numeric_limits<float>::max();
+
+  if (vertexCount < 3) return 0;
+
+  for (int v = 1; v < vertexCount - 1; v++) {
+    vec4 tv0 = vertices[0].position;
+    vec4 tv1 = vertices[v].position;
+    vec4 tv2 = vertices[vertexCount - 1].position;
+
+    Triangle currentTriangle = Triangle(tv0, tv1, tv2, colour);
+
+    vector<Vertex> previousVertices, nextVertices;
+    vector<Triangle> previousResults, nextResults;
+
+    for (int i = 0; i <= v; i++) previousVertices.push_back(vertices[i]);
+    for (int i = v; i < vertexCount; i++) nextVertices.push_back(vertices[i]);
+
+    float costPrevious = TriangulateVertices(previousVertices, previousResults, colour);
+    float costNext = TriangulateVertices(nextVertices, nextResults, colour);
+    float costCur = TriangleCost(currentTriangle);
+    float netCost = costPrevious + costNext + costCur;
+
+    if (netCost < cost) {
+      cost = netCost;
+      result.clear();
+      result.insert(result.end(), previousResults.begin(), previousResults.end());
+      result.push_back(currentTriangle);
+      result.insert(result.end(), nextResults.begin(), nextResults.end());
+    }
+  }
+  return cost;
 }
 
-float VertexDistance(Vertex a, Vertex b) {
-  return distance(a.position, b.position);
+float TriangleCost(Triangle triangle) {
+  return distance(triangle.v0, triangle.v1) + distance(triangle.v1, triangle.v2) + distance(triangle.v2, triangle.v0);
 }
 
 void InterpolatePixels(Pixel a, Pixel b, vector<Pixel>& result) {

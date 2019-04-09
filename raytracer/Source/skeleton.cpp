@@ -3,6 +3,7 @@
 #include <SDL.h>
 #include "SDLauxiliary.h"
 #include "TestModel.h"
+#include "PhongModel.h"
 #include <stdint.h>
 #include "limits"
 #include <math.h>
@@ -22,7 +23,9 @@ SDL_Event event;
 #define SCREEN_HEIGHT 300
 #define FULLSCREEN_MODE false
 
-#define NUM_PHOTONS 30000
+#define PHOTON_MAPPER false
+
+#define NUM_PHOTONS 10000
 
 struct Intersection {
   vec4 position;
@@ -49,6 +52,9 @@ const float shadowBiasThreshold = 0.001f;
 std::vector<Triangle> triangles;
 std::vector<LightSource> lights;
 
+std::vector<TrianglePhong> phongTriangles;
+std::vector<LightSourcePhong> phongLights;
+
 std::vector<Photon> photonMap;
 
 mat4 R;
@@ -60,7 +66,7 @@ float pitch = 0;
 
 bool Update();
 void Draw(screen* screen);
-bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection);
+bool ClosestIntersection(vec4 start, vec4 dir, Intersection& closestIntersection);
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void updateRotation();
 vec3 DirectLight( const Intersection& i );
@@ -77,28 +83,32 @@ vec3 getClosestPhotonPower(Intersection& intersection);
 vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, float maxRadius);
 void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<int>& indices);
 float getDist(vec4 a, vec4 b);
+vec3 computeLight(const Intersection &i, const LightSourcePhong &l);
 
 int main(int argc, char* argv[]) {
   screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
   screen *photonscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
 
-  LoadTestModel(triangles, lights);
+  if (PHOTON_MAPPER) LoadTestModel(triangles, lights);
+  else LoadTestModelPhong(phongTriangles, phongLights);
 
   // Populate the photon map
-  emitPhotons();
+  if (PHOTON_MAPPER) emitPhotons();
 
   while (Update()) {
     Draw(mainscreen);
     SDL_Renderframe(mainscreen);
-    drawPhotons(photonscreen);
-    SDL_Renderframe(photonscreen);
+    if (PHOTON_MAPPER) {
+      drawPhotons(photonscreen);
+      SDL_Renderframe(photonscreen);
+    }
   }
 
   SDL_SaveImage(mainscreen, "mainout.bmp");
-  SDL_SaveImage(photonscreen, "photonmapout.bmp");
+  if (PHOTON_MAPPER) SDL_SaveImage(photonscreen, "photonmapout.bmp");
 
   KillSDL(mainscreen);
-  KillSDL(photonscreen);
+  if (PHOTON_MAPPER) KillSDL(photonscreen);
 
 	return 0;
 }
@@ -120,23 +130,105 @@ void Draw(screen* screen) {
 			vec3 reflectedLight(0.0, 0.0, 0.0); // The visible colour
 			vec3 colour(0.0, 0.0, 0.0); // The original colour of the triangle
 
-      if (ClosestIntersection(cameraPos, d, triangles, intersection)) {
-        reflectedLight = calculateRadiance(intersection);
+      if (PHOTON_MAPPER) {
+        if (ClosestIntersection(cameraPos, d, intersection)) {
+          reflectedLight = calculateRadiance(intersection);
+        }
+
+        if (reflectedLight.x > maxPixelVal) maxPixelVal = reflectedLight.x;
+        if (reflectedLight.y > maxPixelVal) maxPixelVal = reflectedLight.y;
+        if (reflectedLight.z > maxPixelVal) maxPixelVal = reflectedLight.z;
+
+        pixelVals.push_back(reflectedLight);
+      } else {
+        if (ClosestIntersection(cameraPos, d, intersection)) {
+          colour = phongTriangles[intersection.triangleIndex].material.color;
+
+          for (std::vector<LightSourcePhong>::size_type i = 0; i < phongLights.size(); i++) {
+            directLight += computeLight(intersection, phongLights[i]);
+          }
+
+  				directLight = colour * (directLight + indirectLight);
+        }
+          PutPixelSDL(screen, x, y, directLight);
       }
-
-      if (reflectedLight.x > maxPixelVal) maxPixelVal = reflectedLight.x;
-      if (reflectedLight.y > maxPixelVal) maxPixelVal = reflectedLight.y;
-      if (reflectedLight.z > maxPixelVal) maxPixelVal = reflectedLight.z;
-
-      pixelVals.push_back(reflectedLight);
     }
   }
 
-  for (int x = 0; x < SCREEN_WIDTH; x++) {
-    for (int y = 0; y < SCREEN_HEIGHT; y++) {
-      PutPixelSDL(screen, x, y, pixelVals[x*SCREEN_HEIGHT + y]/maxPixelVal);
+  if (PHOTON_MAPPER) {
+    for (int x = 0; x < SCREEN_WIDTH; x++) {
+      for (int y = 0; y < SCREEN_HEIGHT; y++) {
+        PutPixelSDL(screen, x, y, pixelVals[x*SCREEN_HEIGHT + y]/maxPixelVal);
+      }
     }
   }
+}
+
+vec3 computeLight( const Intersection &i, const LightSourcePhong &l ) {
+  // Using equation from https://en.wikipedia.org/wiki/Phong_reflection_model
+  vec3 light(0.0,0.0,0.0);
+
+  vec4 Lm = normalize(l.position - i.position);
+  vec4 V = normalize(cameraPos - i.position);
+
+  float dist = distance(l.position, i.position);
+
+  float id = l.diffuseIntensity;
+  float is = l.specularIntensity;
+  float ia = l.ambientIntensity;
+
+  float kd = 1;
+  float ks = 1;
+  float ka = 1;
+  float alpha;
+
+  vec4 normal;
+  vec4 Rm;
+
+  float LmNormalDot;
+  float RmVDot;
+
+  TrianglePhong triangle = phongTriangles[i.triangleIndex];
+
+  ka = triangle.material.ambientRef;
+
+  light += ka * (ia * l.color);
+
+  kd = triangle.material.diffuseRef;
+
+  normal = normalize(triangle.normal);
+
+  LmNormalDot = dot(Lm, normal);
+
+  ks = triangle.material.specularRef;
+
+  Rm = normalize(2 * max(0.0f, LmNormalDot) * normal - Lm);
+
+  alpha = triangle.material.shininess;
+
+  RmVDot = dot(Rm, V);
+
+  if (LmNormalDot > 0) {
+    light += (kd * LmNormalDot * (id * l.color)) / dist;
+
+    if (RmVDot > 0) {
+      light += (ks * pow(RmVDot, alpha) * (is * l.color)) / dist;
+    }
+  }
+
+  Intersection intersection;
+
+  vec4 lightDir = l.position - i.position;
+  vec4 rHat = normalize(lightDir);
+  float r = distance(i.position, l.position);
+
+  if (ClosestIntersection(i.position, rHat, intersection)) {
+    if (intersection.triangleIndex != i.triangleIndex && intersection.distance < r) {
+      light = ka * (ia * l.color);
+    }
+  }
+
+  return light;
 }
 
 void drawPhotons(screen* screen) {
@@ -280,7 +372,7 @@ void emitPhotonsFromLight(LightSource &light, int numPhotons) {
 bool tracePhoton(vec3 power, vec4 start, vec4 direction) {
   Intersection intersection;
 
-  if (ClosestIntersection(start, direction, triangles, intersection)) {
+  if (ClosestIntersection(start, direction, intersection)) {
     Triangle triangle = triangles[intersection.triangleIndex];
 
     Material material = triangle.material;
@@ -327,15 +419,17 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction) {
   return false;
 }
 
-bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection) {
+bool ClosestIntersection(vec4 start, vec4 dir, Intersection& closestIntersection) {
   bool intersectionFound = false;
   closestIntersection = Intersection();
   closestIntersection.distance = std::numeric_limits<float>::max();
 
-  for(std::vector<Triangle>::size_type i = 0; i < triangles.size(); i++) {
-    vec4 v0 = triangles[i].v0;
-    vec4 v1 = triangles[i].v1;
-    vec4 v2 = triangles[i].v2;
+  float size = (PHOTON_MAPPER) ? triangles.size() : phongTriangles.size();
+
+  for(std::vector<Triangle>::size_type i = 0; i < size; i++) {
+    vec4 v0 = (PHOTON_MAPPER) ? triangles[i].v0 : phongTriangles[i].v0;
+    vec4 v1 = (PHOTON_MAPPER) ? triangles[i].v1 : phongTriangles[i].v1;
+    vec4 v2 = (PHOTON_MAPPER) ? triangles[i].v2 : phongTriangles[i].v2;
 
     vec3 e1 = vec3(v1.x-v0.x,v1.y-v0.y,v1.z-v0.z);
     vec3 e2 = vec3(v2.x-v0.x,v2.y-v0.y,v2.z-v0.z);
@@ -432,7 +526,7 @@ vec3 DirectLight( const Intersection& i ) {
 	Intersection intersection;
 	vec3 black = vec3(0.0, 0.0, 0.0); // Initialise to black
 
-	if (ClosestIntersection(i.position, rHat, triangles, intersection)) {
+	if (ClosestIntersection(i.position, rHat, intersection)) {
 		if (intersection.triangleIndex != i.triangleIndex && intersection.distance < r) {
 			C = black;
 		}

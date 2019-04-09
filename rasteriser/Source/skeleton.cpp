@@ -14,16 +14,17 @@ using glm::vec4;
 using glm::mat3;
 using glm::mat4;
 
-SDL_Event event;
-
+#define FULLSCREEN_MODE false
 #define SCREEN_WIDTH 600
 #define SCREEN_HEIGHT 600
 #define CLIP_OFFSET 50
 #define NEAR_CLIP_THRESHOLD 2
 #define FAR_CLIP_THRESHOLD 10
-#define FULLSCREEN_MODE false
+#define TRIANGULATE true
+#define FILL true
 
-std::vector<Triangle> triangles;
+SDL_Event event;
+vector<Triangle> triangles;
 
 const float focalLength = SCREEN_HEIGHT;
 const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
@@ -75,6 +76,9 @@ void CalculateIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVa
 void HomogenousFlatten(Vertex homogenousVertex, Vertex& flatVertex);
 void HomogenousDivide(Vertex homogenousVertex, Vertex& projectedVertex);
 void ProjectToHomogenous(Vertex vertex, mat4 proj, Vertex& projectedVertex);
+void TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour);
+float TriangleCost(Vertex a, Vertex b, Vertex c);
+float VertexDistance(Vertex a, Vertex b);
 
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T);
 void UpdateRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
@@ -85,10 +89,10 @@ void PixelShader(screen *screen, const Pixel& p);
 void DrawClipOffset(screen* screen, bool fillOutline);
 void DrawDepthBuffer(screen* screen);
 void DrawLineSDL(screen* surface, Pixel a, Pixel b, vec3 colour);
-void DrawPolygonEdges(screen* screen, const vector<Vertex>& vertices, vec3 colour, vec4 normal, vec3 reflectance);
 void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels);
 void DrawPolygonRows(screen* screen, const vector<Pixel>& leftPixels, const vector<Pixel>& rightPixels);
-void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour, vec4 normal, vec3 reflectance);
+void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour, vec4 normal, vec3 reflectance, bool fill);
+void DrawTriangle(screen* screen, Triangle triangle, vec3 reflectance, bool fill);
 
 void MoveCameraRight(int direction, float distance);
 void MoveCameraUp(int direction, float distance);
@@ -182,10 +186,16 @@ void Draw(screen* screen) {
 
     ClipTriangle(transformedTriangle, clippedVertices);
 
-    // TODO: Convert polygons to triangles
+    if (TRIANGULATE) {
+      vector<Triangle> triangulatedVertices;
+      TriangulateVertices(clippedVertices, triangulatedVertices, triangles[i].color);
 
-    // DrawPolygonEdges(screen, clippedVertices, triangles[i].color, triangles[i].normal, defaultReflectance); // Draw outlines
-    DrawPolygon(screen, clippedVertices, triangles[i].color, triangles[i].normal, defaultReflectance); // Draw filled
+      for (size_t j = 0; j < triangulatedVertices.size(); j++) {
+        DrawTriangle(screen, triangulatedVertices[j], defaultReflectance, FILL);
+      }
+    } else {
+      DrawPolygon(screen, clippedVertices, triangles[i].color, triangles[i].normal, defaultReflectance, FILL); // Draw filled
+    }
   }
 }
 
@@ -255,7 +265,7 @@ void HomogenousFlatten(Vertex homogenousVertex, Vertex& flatVertex) {
 /* Performs a homogenous divide on a vertex, projecting to the 3D plane w = 1 */
 void HomogenousDivide(Vertex homogenousVertex, Vertex& projectedVertex) {
   projectedVertex = homogenousVertex;
-  projectedVertex.position = (1/homogenousVertex.position.w) * homogenousVertex.position;
+  projectedVertex.position = (1 / homogenousVertex.position.w) * homogenousVertex.position;
 }
 
 /* Projects a 3D point into homogenous space */
@@ -271,7 +281,7 @@ void CalculateIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVa
     t = (maxVal - a.position.z) / (b.position.z - a.position.z);
   } else {
     t = (a.position[axis] - maxVal * a.position.w) /
-            ((maxVal * (b.position.w - a.position.w)) - (b.position[axis] - a.position[axis]));
+        ((maxVal * (b.position.w - a.position.w)) - (b.position[axis] - a.position[axis]));
   }
 
   c.position = a.position + t * (b.position - a.position);
@@ -287,6 +297,25 @@ bool IsInsideNeg(Vertex vertex, Axis axis, float maxVal) {
 
 bool IsWithinScreenBounds(Pixel p) {
   return p.x > 0 && p.x < SCREEN_WIDTH && p.y > 0 && p.y < SCREEN_HEIGHT;
+}
+
+/* Triangulates using the fan approach */
+void TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour) {
+  int vertexCount = vertices.size();
+  for (int v = 1; v < vertexCount - 1; v++) {
+    vec4 tv0 = vertices[0].position;
+    vec4 tv1 = vertices[v].position;
+    vec4 tv2 = vertices[v+1].position;
+    result.push_back(Triangle(tv0, tv1, tv2, colour));
+  }
+}
+
+float TriangleCost(Vertex a, Vertex b, Vertex c) {
+  return VertexDistance(a, b) + VertexDistance(b, c) + VertexDistance(c, a);
+}
+
+float VertexDistance(Vertex a, Vertex b) {
+  return distance(a.position, b.position);
 }
 
 void InterpolatePixels(Pixel a, Pixel b, vector<Pixel>& result) {
@@ -320,16 +349,33 @@ void Interpolate(float a, float b, vector<float>& result) {
   for (int i = 0; i < size; i++) result[i] = a + (incr * i);
 }
 
-void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour, vec4 normal, vec3 reflectance) {
+void DrawTriangle(screen* screen, Triangle triangle, vec3 reflectance, bool fill) {
+  /* Convert triangle to list of vertices, then draw as usual */
+  vector<Vertex> vertices;
+  Vertex v0, v1, v2;
+  v0.position = triangle.v0; v1.position = triangle.v1; v2.position = triangle.v2;
+  vertices.push_back(v0); vertices.push_back(v1); vertices.push_back(v2);
+
+  DrawPolygon(screen, vertices, triangle.color, triangle.normal, reflectance, fill);
+}
+
+void DrawPolygon(screen* screen, const vector<Vertex>& vertices, vec3 colour, vec4 normal, vec3 reflectance, bool fill) {
   int V = vertices.size();
-  vector<Pixel> vertexPixels(V);
+  vector<Pixel> projectedVertices(V);
 
-  for (int i = 0; i < V; i++) VertexShader(vertices[i], vertexPixels[i], colour, normal, reflectance);
+  for (int i = 0; i < V; i++) VertexShader(vertices[i], projectedVertices[i], colour, normal, reflectance);
 
-  vector<Pixel> leftPixels; vector<Pixel> rightPixels;
-
-  ComputePolygonRows(vertexPixels, leftPixels, rightPixels);
-  DrawPolygonRows(screen, leftPixels, rightPixels);
+  if (fill) {
+    vector<Pixel> leftPixels; vector<Pixel> rightPixels;
+    ComputePolygonRows(projectedVertices, leftPixels, rightPixels);
+    DrawPolygonRows(screen, leftPixels, rightPixels);
+  } else {
+    /* Loop over all vertices and draw the edge from it to the next vertex */
+    for (int i = 0; i < V; i++) {
+      int j = (i + 1) % V; // The next vertex
+      DrawLineSDL(screen, projectedVertices[i], projectedVertices[j], colour);
+    }
+  }
 }
 
 void ComputePolygonRows(const vector<Pixel>& vertexPixels, vector<Pixel>& leftPixels, vector<Pixel>& rightPixels) {
@@ -430,19 +476,6 @@ void DrawLineSDL(screen* screen, Pixel a, Pixel b, vec3 colour) {
   for (int px = 0; px < pixels; px++) {
     Pixel pixel = line[px];
     if (IsWithinScreenBounds(pixel)) PutPixelSDL(screen, pixel.x, pixel.y, colour);
-  }
-}
-
-void DrawPolygonEdges(screen* screen, const vector<Vertex>& vertices, vec3 colour, vec4 normal, vec3 reflectance) {
-  int V = vertices.size();
-  /* Transform each vertex from 3D world position to 2D image position */
-  vector<Pixel> projectedVertices(V);
-  for (int i = 0; i < V; ++i) VertexShader(vertices[i], projectedVertices[i], colour, normal, reflectance);
-
-  /* Loop over all vertices and draw the edge from it to the next vertex */
-  for (int i = 0; i < V; ++i) {
-    int j = (i + 1) % V; // The next vertex
-    DrawLineSDL(screen, projectedVertices[i], projectedVertices[j], colour);
   }
 }
 

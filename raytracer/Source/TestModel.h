@@ -94,7 +94,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	vec3 purple( 0.75f, 0.15f, 0.75f );
 	vec3 white(  0.75f, 0.75f, 0.75f );
 
-	float matteDiffuseRef = 0.4f;
+	float matteDiffuseRef = 0.5f;
 
 	// Define materials
 	Material matteWhite( white * matteDiffuseRef, vec3(0,0,0));
@@ -108,7 +108,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	lights.clear();
 	lights.reserve( 1 );
 
-	lights.push_back( LightSource( 10000, vec3(1, 1, 1), vec4( 0, -0.4, -0.5, 1.0 ), vec4(0, -1, 0, 1), 0.2, 0.2));
+	lights.push_back( LightSource( 2000, vec3(1, 1, 1), vec4( 0, -0.4, -0.5, 1.0 ), vec4(0, -1, 0, 1), 0.2, 0.2));
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
@@ -128,9 +128,29 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	vec4 G(L,L,L,1);
 	vec4 H(0,L,L,1);
 
+	// // Floor:
+	// triangles.push_back( Triangle( C, B, A, yellow, matteYellow ) );
+	// triangles.push_back( Triangle( C, D, B, yellow, matteYellow ) );
+	//
+	// // Left wall
+	// triangles.push_back( Triangle( A, E, C, red, matteRed ) );
+	// triangles.push_back( Triangle( C, E, G, red, matteRed ) );
+	//
+	// // Right wall
+	// triangles.push_back( Triangle( F, B, D, blue, matteBlue ) );
+	// triangles.push_back( Triangle( H, F, D, blue, matteBlue ) );
+	//
+	// // Ceiling
+	// triangles.push_back( Triangle( E, F, G, white, matteWhite ) );
+	// triangles.push_back( Triangle( F, H, G, white, matteWhite ) );
+	//
+	// // Back wall
+	// triangles.push_back( Triangle( G, D, C, cyan, matteCyan ) );
+	// triangles.push_back( Triangle( G, H, D, cyan, matteCyan ) );
+
 	// Floor:
-	triangles.push_back( Triangle( C, B, A, yellow, matteYellow ) );
-	triangles.push_back( Triangle( C, D, B, yellow, matteYellow ) );
+	triangles.push_back( Triangle( C, B, A, white, matteWhite ) );
+	triangles.push_back( Triangle( C, D, B, white, matteWhite ) );
 
 	// Left wall
 	triangles.push_back( Triangle( A, E, C, red, matteRed ) );
@@ -145,8 +165,8 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	triangles.push_back( Triangle( F, H, G, white, matteWhite ) );
 
 	// Back wall
-	triangles.push_back( Triangle( G, D, C, cyan, matteCyan ) );
-	triangles.push_back( Triangle( G, H, D, cyan, matteCyan ) );
+	triangles.push_back( Triangle( G, D, C, white, matteWhite ) );
+	triangles.push_back( Triangle( G, H, D, white, matteWhite ) );
 
 	// ---------------------------------------------------------------------------
 	// Short block
@@ -162,24 +182,24 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	H = vec4( 82,165,225,1);
 
 	// Front
-	triangles.push_back( Triangle(E,B,A,green,matteGreen) );
-	triangles.push_back( Triangle(E,F,B,green,matteGreen) );
+	triangles.push_back( Triangle(E,B,A,white,matteWhite) );
+	triangles.push_back( Triangle(E,F,B,white,matteWhite) );
 
 	// Front
-	triangles.push_back( Triangle(F,D,B,green,matteGreen) );
-	triangles.push_back( Triangle(F,H,D,green,matteGreen) );
+	triangles.push_back( Triangle(F,D,B,white,matteWhite) );
+	triangles.push_back( Triangle(F,H,D,white,matteWhite) );
 
 	// BACK
-	triangles.push_back( Triangle(H,C,D,green,matteGreen) );
-	triangles.push_back( Triangle(H,G,C,green,matteGreen) );
+	triangles.push_back( Triangle(H,C,D,white,matteWhite) );
+	triangles.push_back( Triangle(H,G,C,white,matteWhite) );
 
 	// LEFT
-	triangles.push_back( Triangle(G,E,C,green,matteGreen) );
-	triangles.push_back( Triangle(E,A,C,green,matteGreen) );
+	triangles.push_back( Triangle(G,E,C,white,matteWhite) );
+	triangles.push_back( Triangle(E,A,C,white,matteWhite) );
 
 	// TOP
-	triangles.push_back( Triangle(G,F,E,green,matteGreen) );
-	triangles.push_back( Triangle(G,H,F,green,matteGreen) );
+	triangles.push_back( Triangle(G,F,E,white,matteWhite) );
+	triangles.push_back( Triangle(G,H,F,white,matteWhite) );
 
 	// ---------------------------------------------------------------------------
 	// Tall block
@@ -194,25 +214,45 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	G = vec4(472,330,406,1);
 	H = vec4(314,330,456,1);
 
-	// Front
-	triangles.push_back( Triangle(E,B,A,purple,mattePurple) );
-	triangles.push_back( Triangle(E,F,B,purple,mattePurple) );
+	// // Front
+	// triangles.push_back( Triangle(E,B,A,purple,mattePurple) );
+	// triangles.push_back( Triangle(E,F,B,purple,mattePurple) );
+	//
+	// // Front
+	// triangles.push_back( Triangle(F,D,B,purple,mattePurple) );
+	// triangles.push_back( Triangle(F,H,D,purple,mattePurple) );
+	//
+	// // BACK
+	// triangles.push_back( Triangle(H,C,D,purple,mattePurple) );
+	// triangles.push_back( Triangle(H,G,C,purple,mattePurple) );
+	//
+	// // LEFT
+	// triangles.push_back( Triangle(G,E,C,purple,mattePurple) );
+	// triangles.push_back( Triangle(E,A,C,purple,mattePurple) );
+	//
+	// // TOP
+	// triangles.push_back( Triangle(G,F,E,purple,mattePurple) );
+	// triangles.push_back( Triangle(G,H,F,purple,mattePurple) );
 
 	// Front
-	triangles.push_back( Triangle(F,D,B,purple,mattePurple) );
-	triangles.push_back( Triangle(F,H,D,purple,mattePurple) );
+	triangles.push_back( Triangle(E,B,A,white,matteWhite) );
+	triangles.push_back( Triangle(E,F,B,white,matteWhite) );
+
+	// Front
+	triangles.push_back( Triangle(F,D,B,white,matteWhite) );
+	triangles.push_back( Triangle(F,H,D,white,matteWhite) );
 
 	// BACK
-	triangles.push_back( Triangle(H,C,D,purple,mattePurple) );
-	triangles.push_back( Triangle(H,G,C,purple,mattePurple) );
+	triangles.push_back( Triangle(H,C,D,white,matteWhite) );
+	triangles.push_back( Triangle(H,G,C,white,matteWhite) );
 
 	// LEFT
-	triangles.push_back( Triangle(G,E,C,purple,mattePurple) );
-	triangles.push_back( Triangle(E,A,C,purple,mattePurple) );
+	triangles.push_back( Triangle(G,E,C,white,matteWhite) );
+	triangles.push_back( Triangle(E,A,C,white,matteWhite) );
 
 	// TOP
-	triangles.push_back( Triangle(G,F,E,purple,mattePurple) );
-	triangles.push_back( Triangle(G,H,F,purple,mattePurple) );
+	triangles.push_back( Triangle(G,F,E,white,matteWhite) );
+	triangles.push_back( Triangle(G,H,F,white,matteWhite) );
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3

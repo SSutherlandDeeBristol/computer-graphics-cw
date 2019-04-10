@@ -70,24 +70,29 @@ float pitch = 0;
 
 bool Update();
 void Draw(screen* screen);
-bool ClosestIntersection(vec4 start, vec4 dir, Intersection& closestIntersection);
+
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
 void updateRotation();
-vec3 DirectLight( const Intersection& i );
 void moveCameraRight(int direction);
 void moveCameraUp(int direction);
 void moveCameraForward(int direction);
 void lookAt(mat4& ctw);
+
 void emitPhotons();
 void emitPhotonsFromLight(LightSource &light, int numPhotons);
 bool tracePhoton(vec3 power, vec4 start, vec4 direction);
-vec3 calculateRadiance(Intersection& intersection);
 void drawPhotons(screen* screen);
+
+vec3 calculateRadiance(Intersection& intersection);
+vec3 computeLight(const Intersection &i, const PhongLightSource &l);
+vec3 DirectLight( const Intersection& i );
+
 vec3 getClosestPhotonPower(Intersection& intersection);
 vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, float maxRadius);
 void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<int>& indices);
 float getDist(vec4 a, vec4 b);
-vec3 computeLight(const Intersection &i, const PhongLightSource &l);
+
+bool ClosestIntersection(vec4 start, vec4 dir, Intersection& closestIntersection);
 bool intersectTriangle(Intersection& closestIntersection, vec4 start, vec4 dir, vec4 v0, vec4 v1, vec4 v2, int index);
 bool intersectSphere(Intersection& intersection, vec4 start, vec4 dir, vec3 centre, float radius, int index);
 

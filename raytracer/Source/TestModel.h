@@ -386,12 +386,14 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 	PhongMaterial matteWhite(white, 1, 2, 2, 1);
 
 	PhongMaterial shinyPurple(darkPurple, 4, 4, 5, 50);
+	PhongMaterial shinyRed(red, 4, 4, 5, 50);
+	PhongMaterial shinyYellow(yellow, 4, 4, 5, 50);
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
 
 	spheres.clear();
-	spheres.reserve(1);
+	spheres.reserve(2);
 
 	lights.clear();
 	lights.reserve(1);
@@ -504,6 +506,7 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 	// ---------------------------------------------------------------------------
 
 	spheres.push_back( PhongSphere(vec4(0.4,0,-0.2,1), 0.3, shinyPurple) );
+	spheres.push_back( PhongSphere(vec4(-0.4,0.7,-0.8,1), 0.2, shinyYellow) );
 
 	// ---------------------------------------------------------------------------
 	// Lights

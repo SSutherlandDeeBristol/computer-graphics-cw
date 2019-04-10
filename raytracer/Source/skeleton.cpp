@@ -22,7 +22,7 @@ SDL_Event event;
 #define SCREEN_HEIGHT 300
 #define FULLSCREEN_MODE false
 
-#define PHOTON_MAPPER false
+#define PHOTON_MAPPER true
 
 #define NUM_PHOTONS 5000
 
@@ -84,7 +84,7 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction);
 void drawPhotons(screen* screen);
 
 vec3 calculateRadiance(Intersection& intersection);
-vec3 computeLight(const Intersection &i, const PhongLightSource &l);
+vec3 phongComputeLight(const Intersection &i, const PhongLightSource &l);
 vec3 DirectLight( const Intersection& i );
 
 vec3 getClosestPhotonPower(Intersection& intersection);
@@ -164,7 +164,7 @@ void Draw(screen* screen) {
           }
 
           for (std::vector<PhongLightSource>::size_type i = 0; i < phongLights.size(); i++) {
-            directLight += computeLight(intersection, phongLights[i]);
+            directLight += phongComputeLight(intersection, phongLights[i]);
           }
 
   				directLight = colour * (directLight + indirectLight);
@@ -371,7 +371,7 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction) {
   return false;
 }
 
-vec3 computeLight( const Intersection &i, const PhongLightSource &l ) {
+vec3 phongComputeLight( const Intersection &i, const PhongLightSource &l ) {
   // Using equation from https://en.wikipedia.org/wiki/Phong_reflection_model
   vec3 light(0.0,0.0,0.0);
 

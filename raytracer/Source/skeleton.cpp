@@ -24,7 +24,7 @@ SDL_Event event;
 
 #define PHOTON_MAPPER true
 
-#define NUM_PHOTONS 5000
+#define NUM_PHOTONS 10000
 
 enum geometry {triangle, sphere};
 
@@ -83,11 +83,11 @@ void emitPhotonsFromLight(LightSource &light, int numPhotons);
 bool tracePhoton(vec3 power, vec4 start, vec4 direction);
 void drawPhotons(screen* screen);
 
-vec3 calculateRadiance(Intersection& intersection);
+vec3 calculateRadiance(Intersection& intersection, LightSource& l);
 vec3 phongComputeLight(const Intersection &i, const PhongLightSource &l);
 vec3 DirectLight( const Intersection& i );
 
-vec3 getClosestPhotonPower(Intersection& intersection);
+vec3 getClosestPhotonPower(Intersection& intersection, LightSource& l);
 vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, float maxRadius);
 void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<int>& indices);
 float getDist(vec4 a, vec4 b);
@@ -147,7 +147,9 @@ void Draw(screen* screen) {
 
       if (PHOTON_MAPPER) {
         if (ClosestIntersection(cameraPos, d, intersection)) {
-          reflectedLight = calculateRadiance(intersection);
+          for (int i = 0; i < lights.size(); i++) {
+            reflectedLight += calculateRadiance(intersection, lights[i]);
+          }
         }
 
         if (reflectedLight.x > maxPixelVal) maxPixelVal = reflectedLight.x;
@@ -255,7 +257,7 @@ void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<i
   }
 }
 
-vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, float maxRadius) {
+vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numNearest, float maxRadius) {
   vector<int> nearestPhotonsIndex;
   vec3 accumPower = vec3(0,0,0);
   float radius = 0;
@@ -272,7 +274,7 @@ vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, float ma
 
   vec3 unitPower = accumPower / (float) ((4/3) * M_PI * pow(radius, 3));
 
-  float maxPower = NUM_PHOTONS / 3;
+  float maxPower = l.watts * 2;
 
   if (unitPower.x > maxPower) unitPower = unitPower * (maxPower / unitPower.x);
   if (unitPower.y > maxPower) unitPower = unitPower * (maxPower / unitPower.y);
@@ -281,8 +283,8 @@ vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, float ma
   return unitPower;
 }
 
-vec3 calculateRadiance(Intersection& intersection) {
-  return getNearestPhotonsPower(intersection, 100, 0.05);
+vec3 calculateRadiance(Intersection& intersection, LightSource& l) {
+  return getNearestPhotonsPower(intersection, l, 100, 0.05);
 }
 
 void emitPhotons() {

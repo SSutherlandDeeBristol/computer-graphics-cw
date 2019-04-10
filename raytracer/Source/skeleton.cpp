@@ -3,7 +3,6 @@
 #include <SDL.h>
 #include "SDLauxiliary.h"
 #include "TestModel.h"
-#include "PhongModel.h"
 #include <stdint.h>
 #include "limits"
 #include <math.h>
@@ -25,12 +24,15 @@ SDL_Event event;
 
 #define PHOTON_MAPPER false
 
-#define NUM_PHOTONS 10000
+#define NUM_PHOTONS 5000
+
+enum geometry {triangle, sphere};
 
 struct Intersection {
   vec4 position;
   float distance;
-  int triangleIndex;
+  int index;
+  geometry intersectionType;
 };
 
 struct Photon {
@@ -50,10 +52,12 @@ vec3 indirectLight = 0.5f * vec3( 1, 1, 1 );
 const float shadowBiasThreshold = 0.001f;
 
 std::vector<Triangle> triangles;
+std::vector<Sphere> spheres;
 std::vector<LightSource> lights;
 
-std::vector<TrianglePhong> phongTriangles;
-std::vector<LightSourcePhong> phongLights;
+std::vector<PhongTriangle> phongTriangles;
+std::vector<PhongSphere> phongSpheres;
+std::vector<PhongLightSource> phongLights;
 
 std::vector<Photon> photonMap;
 
@@ -83,17 +87,21 @@ vec3 getClosestPhotonPower(Intersection& intersection);
 vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, float maxRadius);
 void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<int>& indices);
 float getDist(vec4 a, vec4 b);
-vec3 computeLight(const Intersection &i, const LightSourcePhong &l);
+vec3 computeLight(const Intersection &i, const PhongLightSource &l);
+bool intersectTriangle(Intersection& closestIntersection, vec4 start, vec4 dir, vec4 v0, vec4 v1, vec4 v2, int index);
+bool intersectSphere(Intersection& intersection, vec4 start, vec4 dir, vec3 centre, float radius, int index);
 
 int main(int argc, char* argv[]) {
   screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-  screen *photonscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+  screen *photonscreen;
 
-  if (PHOTON_MAPPER) LoadTestModel(triangles, lights);
-  else LoadTestModelPhong(phongTriangles, phongLights);
-
-  // Populate the photon map
-  if (PHOTON_MAPPER) emitPhotons();
+  if (PHOTON_MAPPER) {
+    photonscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+    LoadTestModel(triangles, lights);
+    emitPhotons();
+  } else {
+    LoadTestModelPhong(phongTriangles, phongSpheres, phongLights);
+  }
 
   while (Update()) {
     Draw(mainscreen);
@@ -105,10 +113,12 @@ int main(int argc, char* argv[]) {
   }
 
   SDL_SaveImage(mainscreen, "mainout.bmp");
-  if (PHOTON_MAPPER) SDL_SaveImage(photonscreen, "photonmapout.bmp");
-
   KillSDL(mainscreen);
-  if (PHOTON_MAPPER) KillSDL(photonscreen);
+
+  if (PHOTON_MAPPER) {
+    SDL_SaveImage(photonscreen, "photonmapout.bmp");
+    KillSDL(photonscreen);
+  }
 
 	return 0;
 }
@@ -142,9 +152,13 @@ void Draw(screen* screen) {
         pixelVals.push_back(reflectedLight);
       } else {
         if (ClosestIntersection(cameraPos, d, intersection)) {
-          colour = phongTriangles[intersection.triangleIndex].material.color;
+          if (intersection.intersectionType == triangle) {
+            colour = phongTriangles[intersection.index].material.color;
+          } else if (intersection.intersectionType == sphere) {
+            colour = phongSpheres[intersection.index].material.color;
+          }
 
-          for (std::vector<LightSourcePhong>::size_type i = 0; i < phongLights.size(); i++) {
+          for (std::vector<PhongLightSource>::size_type i = 0; i < phongLights.size(); i++) {
             directLight += computeLight(intersection, phongLights[i]);
           }
 
@@ -162,73 +176,6 @@ void Draw(screen* screen) {
       }
     }
   }
-}
-
-vec3 computeLight( const Intersection &i, const LightSourcePhong &l ) {
-  // Using equation from https://en.wikipedia.org/wiki/Phong_reflection_model
-  vec3 light(0.0,0.0,0.0);
-
-  vec4 Lm = normalize(l.position - i.position);
-  vec4 V = normalize(cameraPos - i.position);
-
-  float dist = distance(l.position, i.position);
-
-  float id = l.diffuseIntensity;
-  float is = l.specularIntensity;
-  float ia = l.ambientIntensity;
-
-  float kd = 1;
-  float ks = 1;
-  float ka = 1;
-  float alpha;
-
-  vec4 normal;
-  vec4 Rm;
-
-  float LmNormalDot;
-  float RmVDot;
-
-  TrianglePhong triangle = phongTriangles[i.triangleIndex];
-
-  ka = triangle.material.ambientRef;
-
-  light += ka * (ia * l.color);
-
-  kd = triangle.material.diffuseRef;
-
-  normal = normalize(triangle.normal);
-
-  LmNormalDot = dot(Lm, normal);
-
-  ks = triangle.material.specularRef;
-
-  Rm = normalize(2 * max(0.0f, LmNormalDot) * normal - Lm);
-
-  alpha = triangle.material.shininess;
-
-  RmVDot = dot(Rm, V);
-
-  if (LmNormalDot > 0) {
-    light += (kd * LmNormalDot * (id * l.color)) / dist;
-
-    if (RmVDot > 0) {
-      light += (ks * pow(RmVDot, alpha) * (is * l.color)) / dist;
-    }
-  }
-
-  Intersection intersection;
-
-  vec4 lightDir = l.position - i.position;
-  vec4 rHat = normalize(lightDir);
-  float r = distance(i.position, l.position);
-
-  if (ClosestIntersection(i.position, rHat, intersection)) {
-    if (intersection.triangleIndex != i.triangleIndex && intersection.distance < r) {
-      light = ka * (ia * l.color);
-    }
-  }
-
-  return light;
 }
 
 void drawPhotons(screen* screen) {
@@ -373,7 +320,7 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction) {
   Intersection intersection;
 
   if (ClosestIntersection(start, direction, intersection)) {
-    Triangle triangle = triangles[intersection.triangleIndex];
+    Triangle triangle = triangles[intersection.index];
 
     Material material = triangle.material;
 
@@ -419,50 +366,203 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction) {
   return false;
 }
 
+vec3 computeLight( const Intersection &i, const PhongLightSource &l ) {
+  // Using equation from https://en.wikipedia.org/wiki/Phong_reflection_model
+  vec3 light(0.0,0.0,0.0);
+
+  vec4 Lm = normalize(l.position - i.position);
+  vec4 V = normalize(cameraPos - i.position);
+
+  float dist = distance(l.position, i.position);
+
+  float id = l.diffuseIntensity;
+  float is = l.specularIntensity;
+  float ia = l.ambientIntensity;
+
+  float kd = 1;
+  float ks = 1;
+  float ka = 1;
+  float alpha;
+
+  vec4 normal;
+  vec4 Rm;
+
+  float LmNormalDot;
+  float RmVDot;
+
+  if (i.intersectionType == triangle) {
+    PhongTriangle triangle = phongTriangles[i.index];
+
+    ka = triangle.material.ambientRef;
+
+    light += ka * (ia * l.color);
+
+    kd = triangle.material.diffuseRef;
+
+    normal = normalize(triangle.normal);
+
+    LmNormalDot = dot(Lm, normal);
+
+    ks = triangle.material.specularRef;
+
+    Rm = normalize(2 * max(0.0f, LmNormalDot) * normal - Lm);
+
+    alpha = triangle.material.shininess;
+
+    RmVDot = dot(Rm, V);
+
+    if (LmNormalDot > 0) {
+      light += (kd * LmNormalDot * (id * l.color)) / dist;
+
+      if (RmVDot > 0) {
+        light += (ks * pow(RmVDot, alpha) * (is * l.color)) / dist;
+      }
+    }
+  } else if (i.intersectionType == sphere) {
+    PhongSphere sphere = phongSpheres[i.index];
+
+    ka = sphere.material.ambientRef;
+
+    light += ka * (ia * l.color);
+
+    kd = sphere.material.diffuseRef;
+
+    normal = normalize(i.position - sphere.centre);
+
+    LmNormalDot = dot(Lm, normal);
+
+    ks = sphere.material.specularRef;
+
+    Rm = normalize(2 * max(0.0f, LmNormalDot) * normal - Lm);
+
+    alpha = sphere.material.shininess;
+
+    RmVDot = dot(Rm, V);
+
+    if (LmNormalDot > 0) {
+      light += (kd * max(0.0f, LmNormalDot) * (id * l.color)) / dist;
+
+      if (RmVDot > 0) {
+        light += (ks * pow(RmVDot, alpha) * (is * l.color)) / dist;
+      }
+    }
+  }
+
+  Intersection intersection;
+
+  vec4 lightDir = l.position - i.position;
+  vec4 rHat = normalize(lightDir);
+  float r = distance(i.position, l.position);
+
+  if (ClosestIntersection(i.position, rHat, intersection)) {
+    if (intersection.index != i.index && intersection.distance < r) {
+      light = ka * (ia * l.color);
+    }
+  }
+
+  return light;
+}
+
+bool intersectTriangle(Intersection& closestIntersection, vec4 start, vec4 dir, vec4 v0, vec4 v1, vec4 v2, int index) {
+  bool intersectionFound = false;
+
+  vec3 e1 = vec3(v1.x-v0.x,v1.y-v0.y,v1.z-v0.z);
+  vec3 e2 = vec3(v2.x-v0.x,v2.y-v0.y,v2.z-v0.z);
+  vec3 b = vec3(start.x-v0.x,start.y-v0.y,start.z-v0.z);
+  vec3 d = vec3(dir.x, dir.y, dir.z);
+
+  mat3 A = mat3(-d, e1, e2);
+
+  mat3 A1(b, e1, e2);
+  float detA = glm::determinant(A);
+
+  float t = glm::determinant(A1) / detA;
+
+  if (t > 0) {
+    mat3 A2(-vec3(dir), b, e2);
+    mat3 A3(-vec3(dir), e1, b);
+
+    float u = glm::determinant(A2) / detA;
+    float v = glm::determinant(A3) / detA;
+
+    if (u >= 0 && v >= 0 && (u + v) <= 1) {
+      // Intersection occured
+      vec4 position = start + t * dir;
+      float dist = distance(start, position);
+
+      if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
+        intersectionFound = true;
+        closestIntersection.distance = dist;
+        closestIntersection.position = position;
+        closestIntersection.index = index;
+        closestIntersection.intersectionType = triangle;
+      }
+    }
+  }
+
+  return intersectionFound;
+}
+
+bool intersectSphere(Intersection& closestIntersection, vec4 start, vec4 dir, vec3 ce, float ra, int index) {
+  bool intersectionFound = false;
+  vec3 ro = vec3(start);
+  vec3 rd = vec3(dir);
+
+  vec3 oc = ro - ce;
+  float b = dot( oc, rd );
+  float c = dot( oc, oc ) - ra*ra;
+  float h = b*b - c;
+
+  if( h < 0.0 ) {
+    // no intersection
+    return false;
+  }
+
+  h = sqrt( h );
+
+  // -b - h or -b + h
+  for(int sign = -1; sign <= 1; sign += 2) {
+    // To prevent doing the same sum twice
+    if (!(sign == 1 && h == 0)) {
+      float sol = -b + sign * h;
+      vec4 position = start + sol * dir;
+      float dist = distance(start, position);
+
+      if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
+        intersectionFound = true;
+        closestIntersection.distance = dist;
+        closestIntersection.position = position;
+        closestIntersection.index = index;
+        closestIntersection.intersectionType = sphere;
+      }
+    }
+  }
+
+  return intersectionFound;
+}
+
 bool ClosestIntersection(vec4 start, vec4 dir, Intersection& closestIntersection) {
   bool intersectionFound = false;
   closestIntersection = Intersection();
   closestIntersection.distance = std::numeric_limits<float>::max();
 
-  float size = (PHOTON_MAPPER) ? triangles.size() : phongTriangles.size();
+  float trianglesSize = (PHOTON_MAPPER) ? triangles.size() : phongTriangles.size();
 
-  for(std::vector<Triangle>::size_type i = 0; i < size; i++) {
+  for(int i = 0; i < trianglesSize; i++) {
     vec4 v0 = (PHOTON_MAPPER) ? triangles[i].v0 : phongTriangles[i].v0;
     vec4 v1 = (PHOTON_MAPPER) ? triangles[i].v1 : phongTriangles[i].v1;
     vec4 v2 = (PHOTON_MAPPER) ? triangles[i].v2 : phongTriangles[i].v2;
 
-    vec3 e1 = vec3(v1.x-v0.x,v1.y-v0.y,v1.z-v0.z);
-    vec3 e2 = vec3(v2.x-v0.x,v2.y-v0.y,v2.z-v0.z);
-    vec3 b = vec3(start.x-v0.x,start.y-v0.y,start.z-v0.z);
-    vec3 d = vec3(dir.x, dir.y, dir.z);
+    intersectionFound = intersectionFound | intersectTriangle(closestIntersection, start, dir, v0, v1, v2, i);
+  }
 
-    mat3 A = mat3(-d, e1, e2);
+  float spheresSize = (PHOTON_MAPPER) ? spheres.size() : phongSpheres.size();
 
-    mat3 A1(b, e1, e2);
-    float detA = glm::determinant(A);
+  for(int i = 0; i < spheresSize; i++) {
+    vec3 centre = (PHOTON_MAPPER) ? vec3(spheres[i].centre) : vec3(phongSpheres[i].centre);
+    float radius = (PHOTON_MAPPER) ? spheres[i].radius : phongSpheres[i].radius;
 
-    float t = glm::determinant(A1) / detA;
-
-    if (t > 0) {
-			mat3 A2(-vec3(dir), b, e2);
-			mat3 A3(-vec3(dir), e1, b);
-
-			float u = glm::determinant(A2) / detA;
-			float v = glm::determinant(A3) / detA;
-
-			if (u >= 0 && v >= 0 && (u + v) <= 1) {
-				// Intersection occured
-				vec4 position = start + t * dir;
-				float dist = distance(start, position);
-
-				if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
-					intersectionFound = true;
-					closestIntersection.distance = dist;
-					closestIntersection.position = position;
-					closestIntersection.triangleIndex = i;
-				}
-			}
-    }
+    intersectionFound = intersectionFound | intersectSphere(closestIntersection, start, dir, centre, radius, i);
   }
 
   return intersectionFound;
@@ -508,7 +608,7 @@ void moveCameraForward(int direction, float distance) {
 }
 
 vec3 DirectLight( const Intersection& i ) {
-	Triangle triangle = triangles[i.triangleIndex];
+	Triangle triangle = triangles[i.index];
 
 	float r = distance(i.position, lightPos);
 
@@ -527,7 +627,7 @@ vec3 DirectLight( const Intersection& i ) {
 	vec3 black = vec3(0.0, 0.0, 0.0); // Initialise to black
 
 	if (ClosestIntersection(i.position, rHat, intersection)) {
-		if (intersection.triangleIndex != i.triangleIndex && intersection.distance < r) {
+		if (intersection.index != i.index && intersection.distance < r) {
 			C = black;
 		}
 	}

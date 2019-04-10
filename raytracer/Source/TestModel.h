@@ -13,7 +13,7 @@ using glm::mat4;
 using glm::distance;
 
 // Used to describe a light
-class LightSourcePhong {
+class PhongLightSource {
 public:
   vec4 position;
   vec3 color;
@@ -21,14 +21,14 @@ public:
 	float diffuseIntensity;
 	float specularIntensity;
 
-  LightSourcePhong(const vec4 &p, const vec3 &c, const float &am, const float &di, const float &sp)
+  PhongLightSource(const vec4 &p, const vec3 &c, const float &am, const float &di, const float &sp)
 		: position(p), color(c), ambientIntensity(am), diffuseIntensity(di), specularIntensity(sp)
   {
 
 	}
 };
 
-class MaterialPhong {
+class PhongMaterial {
 public:
 	vec3 color;
 	float ambientRef;
@@ -36,7 +36,7 @@ public:
 	float specularRef;
 	float shininess;
 
-	MaterialPhong(const vec3 &c, const float &am, const float &di, const float &sp, const float &sh)
+	PhongMaterial(const vec3 &c, const float &am, const float &di, const float &sp, const float &sh)
 		: color(c), ambientRef(am), diffuseRef(di), specularRef(sp), shininess(sh)
   {
 
@@ -44,15 +44,15 @@ public:
 };
 
 // Used to describe a triangular surface:
-class TrianglePhong {
+class PhongTriangle {
 public:
 	vec4 v0;
 	vec4 v1;
 	vec4 v2;
 	vec4 normal;
-	MaterialPhong material;
+	PhongMaterial material;
 
-	TrianglePhong( vec4 v0, vec4 v1, vec4 v2, MaterialPhong material )
+	PhongTriangle( vec4 v0, vec4 v1, vec4 v2, PhongMaterial material )
 		: v0(v0), v1(v1), v2(v2), material(material)
 	{
 		ComputeNormal();
@@ -71,13 +71,13 @@ public:
 };
 
 // Used to describe a spherical surface:
-class SpherePhong {
+class PhongSphere {
 public:
 	glm::vec4 centre;
 	float radius;
-	MaterialPhong material;
+	PhongMaterial material;
 
-	SpherePhong( glm::vec4 centre, float radius, MaterialPhong material )
+	PhongSphere( glm::vec4 centre, float radius, PhongMaterial material )
 		: centre(centre), radius(radius), material(material)
 	{
 
@@ -361,7 +361,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	}
 }
 
-void LoadTestModelPhong( std::vector<TrianglePhong>& triangles, std::vector<LightSourcePhong>& lights )
+void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<PhongSphere>& spheres, std::vector<PhongLightSource>& lights )
 {
 	using glm::vec3;
 	using glm::vec4;
@@ -377,21 +377,21 @@ void LoadTestModelPhong( std::vector<TrianglePhong>& triangles, std::vector<Ligh
 
   vec3 darkPurple(0.65f, 0.1f, 0.65f);
 
-	MaterialPhong matteRed(red, 1, 2, 1, 1);
-	MaterialPhong matteYellow(yellow, 1, 2, 1, 1);
-	MaterialPhong matteGreen(green, 1, 2, 1, 1);
-	MaterialPhong matteCyan(cyan, 1, 2, 1, 1);
-	MaterialPhong matteBlue(blue, 1, 2, 1, 1);
-	MaterialPhong mattePurple(purple, 1, 2, 1, 1);
-	MaterialPhong matteWhite(white, 1, 2, 2, 1);
+	PhongMaterial matteRed(red, 1, 2, 1, 1);
+	PhongMaterial matteYellow(yellow, 1, 2, 1, 1);
+	PhongMaterial matteGreen(green, 1, 2, 1, 1);
+	PhongMaterial matteCyan(cyan, 1, 2, 1, 1);
+	PhongMaterial matteBlue(blue, 1, 2, 1, 1);
+	PhongMaterial mattePurple(purple, 1, 2, 1, 1);
+	PhongMaterial matteWhite(white, 1, 2, 2, 1);
 
-	MaterialPhong shinyPurple(darkPurple, 1.2, 3, 4, 7);
+	PhongMaterial shinyPurple(darkPurple, 4, 4, 5, 50);
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
 
-	//spheres.clear();
-	//spheres.reserve(1);
+	spheres.clear();
+	spheres.reserve(1);
 
 	lights.clear();
 	lights.reserve(1);
@@ -414,24 +414,24 @@ void LoadTestModelPhong( std::vector<TrianglePhong>& triangles, std::vector<Ligh
 	vec4 H(0,L,L,1);
 
 	// Floor:
-	triangles.push_back( TrianglePhong( C, B, A, matteGreen ) );
-	triangles.push_back( TrianglePhong( C, D, B, matteGreen ) );
+	triangles.push_back( PhongTriangle( C, B, A, matteGreen ) );
+	triangles.push_back( PhongTriangle( C, D, B, matteGreen ) );
 
 	// Left wall
-	triangles.push_back( TrianglePhong( A, E, C, mattePurple ) );
-	triangles.push_back( TrianglePhong( C, E, G, mattePurple ) );
+	triangles.push_back( PhongTriangle( A, E, C, mattePurple ) );
+	triangles.push_back( PhongTriangle( C, E, G, mattePurple ) );
 
 	// Right wall
-	triangles.push_back( TrianglePhong( F, B, D, matteYellow ) );
-	triangles.push_back( TrianglePhong( H, F, D, matteYellow ) );
+	triangles.push_back( PhongTriangle( F, B, D, matteYellow ) );
+	triangles.push_back( PhongTriangle( H, F, D, matteYellow ) );
 
 	// Ceiling
-	triangles.push_back( TrianglePhong( E, F, G, matteCyan ) );
-	triangles.push_back( TrianglePhong( F, H, G, matteCyan ) );
+	triangles.push_back( PhongTriangle( E, F, G, matteCyan ) );
+	triangles.push_back( PhongTriangle( F, H, G, matteCyan ) );
 
 	// Back wall
-	triangles.push_back( TrianglePhong( G, D, C, matteWhite ) );
-	triangles.push_back( TrianglePhong( G, H, D, matteWhite ) );
+	triangles.push_back( PhongTriangle( G, D, C, matteWhite ) );
+	triangles.push_back( PhongTriangle( G, H, D, matteWhite ) );
 
 	// ---------------------------------------------------------------------------
 	// Short block
@@ -447,24 +447,24 @@ void LoadTestModelPhong( std::vector<TrianglePhong>& triangles, std::vector<Ligh
 	H = vec4( 82,165,225,1);
 
 	// Front
-	triangles.push_back( TrianglePhong(E,B,A,matteRed) );
-	triangles.push_back( TrianglePhong(E,F,B,matteRed) );
+	triangles.push_back( PhongTriangle(E,B,A,matteRed) );
+	triangles.push_back( PhongTriangle(E,F,B,matteRed) );
 
 	// Front
-	triangles.push_back( TrianglePhong(F,D,B,matteRed) );
-	triangles.push_back( TrianglePhong(F,H,D,matteRed) );
+	triangles.push_back( PhongTriangle(F,D,B,matteRed) );
+	triangles.push_back( PhongTriangle(F,H,D,matteRed) );
 
 	// BACK
-	triangles.push_back( TrianglePhong(H,C,D,matteRed) );
-	triangles.push_back( TrianglePhong(H,G,C,matteRed) );
+	triangles.push_back( PhongTriangle(H,C,D,matteRed) );
+	triangles.push_back( PhongTriangle(H,G,C,matteRed) );
 
 	// LEFT
-	triangles.push_back( TrianglePhong(G,E,C,matteRed) );
-	triangles.push_back( TrianglePhong(E,A,C,matteRed) );
+	triangles.push_back( PhongTriangle(G,E,C,matteRed) );
+	triangles.push_back( PhongTriangle(E,A,C,matteRed) );
 
 	// TOP
-	triangles.push_back( TrianglePhong(G,F,E,matteRed) );
-	triangles.push_back( TrianglePhong(G,H,F,matteRed) );
+	triangles.push_back( PhongTriangle(G,F,E,matteRed) );
+	triangles.push_back( PhongTriangle(G,H,F,matteRed) );
 
 	// ---------------------------------------------------------------------------
 	// Tall block
@@ -480,30 +480,30 @@ void LoadTestModelPhong( std::vector<TrianglePhong>& triangles, std::vector<Ligh
 	H = vec4(314,330,456,1);
 
 	// Front
-	triangles.push_back( TrianglePhong(E,B,A,matteBlue) );
-	triangles.push_back( TrianglePhong(E,F,B,matteBlue) );
+	triangles.push_back( PhongTriangle(E,B,A,matteBlue) );
+	triangles.push_back( PhongTriangle(E,F,B,matteBlue) );
 
 	// Front
-	triangles.push_back( TrianglePhong(F,D,B,matteBlue) );
-	triangles.push_back( TrianglePhong(F,H,D,matteBlue) );
+	triangles.push_back( PhongTriangle(F,D,B,matteBlue) );
+	triangles.push_back( PhongTriangle(F,H,D,matteBlue) );
 
 	// BACK
-	triangles.push_back( TrianglePhong(H,C,D,matteBlue) );
-	triangles.push_back( TrianglePhong(H,G,C,matteBlue) );
+	triangles.push_back( PhongTriangle(H,C,D,matteBlue) );
+	triangles.push_back( PhongTriangle(H,G,C,matteBlue) );
 
 	// LEFT
-	triangles.push_back( TrianglePhong(G,E,C,matteBlue) );
-	triangles.push_back( TrianglePhong(E,A,C,matteBlue) );
+	triangles.push_back( PhongTriangle(G,E,C,matteBlue) );
+	triangles.push_back( PhongTriangle(E,A,C,matteBlue) );
 
 	// TOP
-	triangles.push_back( TrianglePhong(G,F,E,matteBlue) );
-	triangles.push_back( TrianglePhong(G,H,F,matteBlue) );
+	triangles.push_back( PhongTriangle(G,F,E,matteBlue) );
+	triangles.push_back( PhongTriangle(G,H,F,matteBlue) );
 
 	// ---------------------------------------------------------------------------
 	// Spheres
 	// ---------------------------------------------------------------------------
 
-	//spheres.push_back( Sphere(vec4(0.4,0,-0.2,1), 0.3, shinyPurple) );
+	spheres.push_back( PhongSphere(vec4(0.4,0,-0.2,1), 0.3, shinyPurple) );
 
 	// ---------------------------------------------------------------------------
 	// Lights
@@ -511,7 +511,7 @@ void LoadTestModelPhong( std::vector<TrianglePhong>& triangles, std::vector<Ligh
 
 	//lights.push_back( Light(vec4(0.5,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
 	//lights.push_back( Light(vec4(-0.5,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
-	lights.push_back( LightSourcePhong(vec4(0.0,-0.5,-0.9,1.0), vec3(1.0,1.0,1.0), 0.02f, 0.3f, 1.0f ));
+	lights.push_back( PhongLightSource(vec4(0.0,-0.5,-0.9,1.0), vec3(1.0,1.0,1.0), 0.02f, 0.3f, 1.0f ));
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3

@@ -91,10 +91,11 @@ public:
 	vec4 position;
 	vec4 direction;
 	float width;
+	float length;
 	float height;
 
-	LightSource( float watts, vec3 color, vec4 position, vec4 direction, float width, float height)
-		: watts(watts), color(color), position(position), direction(direction), width(width), height(height)
+	LightSource( float watts, vec3 color, vec4 position, vec4 direction, float width, float length, float height)
+		: watts(watts), color(color), position(position), direction(direction), width(width), length(length), height(height)
 	{
 
 	}
@@ -172,7 +173,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	vec3 purple( 0.75f, 0.15f, 0.75f );
 	vec3 white(  0.75f, 0.75f, 0.75f );
 
-	float matteDiffuseRef = 0.5f;
+	float matteDiffuseRef = 0.2f;
 
 	// Define materials
 	Material matteWhite( white * matteDiffuseRef, vec3(0,0,0));
@@ -183,10 +184,10 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	Material mattePurple( purple * matteDiffuseRef, vec3(0,0,0));
 	Material matteCyan( cyan * matteDiffuseRef, vec3(0,0,0));
 
+	Material mirror( vec3(0,0,0), vec3(1,1,1));
+
 	lights.clear();
 	lights.reserve( 1 );
-
-	lights.push_back( LightSource( 2000, vec3(1, 1, 1), vec4( 0, -0.4, -0.5, 1.0 ), vec4(0, -1, 0, 1), 0.2, 0.2));
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
@@ -205,6 +206,8 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	vec4 F(0,L,0,1);
 	vec4 G(L,L,L,1);
 	vec4 H(0,L,L,1);
+
+	lights.push_back( LightSource( 30, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, -1, 0, 1), 0.35, 0.35, 0.2));
 
 	// // Floor:
 	// triangles.push_back( Triangle( C, B, A, yellow, matteYellow ) );
@@ -334,6 +337,16 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3
+	// for( size_t i=0; i<lights.size(); ++i )
+	// {
+	// 	lights[i].position *= 2/L;
+	//
+	// 	lights[i].position -= vec4(1,1,1,1);
+	//
+	// 	lights[i].position.x *= -1;
+	// 	lights[i].position.y *= -1;
+	// 	lights[i].position.w = 1.0;
+	// }
 
 	for( size_t i=0; i<triangles.size(); ++i )
 	{
@@ -377,13 +390,13 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 
   vec3 darkPurple(0.65f, 0.1f, 0.65f);
 
-	PhongMaterial matteRed(red, 1, 2, 1, 1);
-	PhongMaterial matteYellow(yellow, 1, 2, 1, 1);
-	PhongMaterial matteGreen(green, 1, 2, 1, 1);
-	PhongMaterial matteCyan(cyan, 1, 2, 1, 1);
-	PhongMaterial matteBlue(blue, 1, 2, 1, 1);
-	PhongMaterial mattePurple(purple, 1, 2, 1, 1);
-	PhongMaterial matteWhite(white, 1, 2, 2, 1);
+	PhongMaterial matteRed(red, 1, 2, 1, 1.1);
+	PhongMaterial matteYellow(yellow, 1, 2, 1, 1.1);
+	PhongMaterial matteGreen(green, 1, 2, 1, 1.1);
+	PhongMaterial matteCyan(cyan, 1, 2, 1, 1.1);
+	PhongMaterial matteBlue(blue, 1, 2, 1, 1.1);
+	PhongMaterial mattePurple(purple, 1, 2, 1, 1.1);
+	PhongMaterial matteWhite(white, 1, 2, 1, 1.1);
 
 	PhongMaterial shinyPurple(darkPurple, 4, 4, 5, 50);
 	PhongMaterial shinyRed(red, 4, 4, 5, 50);
@@ -514,7 +527,7 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 
 	//lights.push_back( Light(vec4(0.5,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
 	//lights.push_back( Light(vec4(-0.5,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
-	lights.push_back( PhongLightSource(vec4(0.0,-0.5,-0.9,1.0), vec3(1.0,1.0,1.0), 0.02f, 0.3f, 1.0f ));
+	lights.push_back( PhongLightSource(vec4(0.0,-0.5,-0.7,1.0), vec3(1.0,1.0,1.0), 0.02f, 0.3f, 1.0f ));
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3

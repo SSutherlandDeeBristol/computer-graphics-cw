@@ -22,9 +22,9 @@ SDL_Event event;
 #define SCREEN_HEIGHT 300
 #define FULLSCREEN_MODE false
 
-#define NUM_PHOTONS 200000
+#define NUM_PHOTONS 20000
 #define MAX_PHOTON_DEPTH 20
-#define NUM_NEAREST_PHOTONS 50
+#define NUM_NEAREST_PHOTONS 100
 
 #define NUM_SHADOW_RAYS 20
 
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
 
   if (PHOTON_MAPPER) {
     photonscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-    LoadTestModel(triangles, lights);
+    LoadTestModel(triangles, spheres, lights);
     emitPhotons();
   } else {
     LoadTestModelPhong(phongTriangles, phongSpheres, phongLights);
@@ -711,7 +711,7 @@ bool closestIntersection(vec4 start, vec4 dir, Intersection& closestIntersection
   closestIntersection = Intersection();
   closestIntersection.distance = std::numeric_limits<float>::max();
 
-  float trianglesSize = (PHOTON_MAPPER) ? triangles.size() : phongTriangles.size();
+  int trianglesSize = (PHOTON_MAPPER) ? triangles.size() : phongTriangles.size();
 
   for(int i = 0; i < trianglesSize; i++) {
     vec4 v0 = (PHOTON_MAPPER) ? triangles[i].v0 : phongTriangles[i].v0;
@@ -721,7 +721,7 @@ bool closestIntersection(vec4 start, vec4 dir, Intersection& closestIntersection
     intersectionFound = intersectionFound | intersectTriangle(closestIntersection, start, dir, v0, v1, v2, i);
   }
 
-  float spheresSize = (PHOTON_MAPPER) ? spheres.size() : phongSpheres.size();
+  int spheresSize = (PHOTON_MAPPER) ? spheres.size() : phongSpheres.size();
 
   for(int i = 0; i < spheresSize; i++) {
     vec3 centre = (PHOTON_MAPPER) ? vec3(spheres[i].centre) : vec3(phongSpheres[i].centre);

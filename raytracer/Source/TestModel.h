@@ -147,9 +147,10 @@ public:
 	vec4 centre;
 	float radius;
 	vec3 color;
+	Material material;
 
-	Sphere( vec4 centre, float radius, vec3 color )
-		: centre(centre), radius(radius), color(color)
+	Sphere( vec4 centre, float radius, vec3 color, Material material )
+		: centre(centre), radius(radius), color(color), material(material)
 	{
 
 	}
@@ -159,7 +160,7 @@ public:
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& lights)
+void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spheres, std::vector<LightSource>& lights)
 {
 	using glm::vec3;
 	using glm::vec4;
@@ -192,6 +193,9 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
 
+	spheres.clear();
+	spheres.reserve( 1 );
+
 	// ---------------------------------------------------------------------------
 	// Room
 
@@ -207,7 +211,9 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<LightSource>& 
 	vec4 G(L,L,L,1);
 	vec4 H(0,L,L,1);
 
-	lights.push_back( LightSource( 30, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, -1, 0, 1), 0.35, 0.35, 0.2));
+	lights.push_back( LightSource( 30, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, -1, 0, 1), 0.35, 0.35, 0.2) );
+
+	spheres.push_back( Sphere(vec4(0.4,0,-0.2,1), 0.2, white, matteWhite) );
 
 	// // Floor:
 	// triangles.push_back( Triangle( C, B, A, yellow, matteYellow ) );

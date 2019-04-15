@@ -23,7 +23,6 @@ SDL_Event event;
 #define FULLSCREEN_MODE false
 
 #define MAX_PHOTON_DEPTH 20
-#define NUM_NEAREST_PHOTONS 100
 #define FILTER_CONSTANT 0.05
 
 #define NUM_SHADOW_RAYS 20
@@ -47,7 +46,8 @@ struct Photon {
 };
 
 bool PHOTON_MAPPER = false;
-int numPhotons = 5000;
+int NUM_PHOTONS = 5000;
+int NUM_NEAREST_PHOTONS = 200;
 
 const float focalLength = SCREEN_HEIGHT;
 const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
@@ -88,7 +88,7 @@ void moveCameraForward(int direction);
 void lookAt(mat4& ctw);
 
 void emitPhotons();
-void emitPhotonsFromLight(LightSource &l, int numPhotons);
+void emitPhotonsFromLight(LightSource &l, int NUM_PHOTONS);
 bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounce);
 void drawPhotons(screen* screen);
 
@@ -113,24 +113,30 @@ bool intersectSquare(Intersection& intersection, vec4 start, vec4 dir, vec4 posi
 
 int main(int argc, char* argv[]) {
   if (argc > 1) {
-    if (strcmp("true", argv[1]) == 0) {
+    try {
+      NUM_PHOTONS = std::stoi(argv[1]);
       PHOTON_MAPPER = true;
       if (argc > 2) {
         try {
-          numPhotons = std::stoi(argv[2]);
+          NUM_NEAREST_PHOTONS = std::stoi(argv[2]);
         } catch (std::exception const &e) {
-          cout << "Could not parse number of photons, using default: " << numPhotons << endl;
+          cout << "Could not parse number of nearest photons." << endl;
         }
       }
-    } else if (strcmp("false", argv[1]) == 0) {
+    } catch (std::exception const &e) {
+      cout << "Could not parse number of photons, using phong." << endl;
       PHOTON_MAPPER = false;
     }
+  } else {
+    PHOTON_MAPPER = false;
   }
 
   screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
   screen *photonscreen;
 
   if (PHOTON_MAPPER) {
+    cout << "Number of photons: " << NUM_PHOTONS << endl;
+    cout << "Number of nearest photons in radiance estimate: " << NUM_NEAREST_PHOTONS << endl;
     photonscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
     LoadTestModel(triangles, spheres, lights);
     emitPhotons();
@@ -382,7 +388,7 @@ vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numN
 }
 
 void emitPhotons() {
-  photonMap.reserve( numPhotons );
+  photonMap.reserve( NUM_PHOTONS );
 
   int numLights = lights.size();
 
@@ -390,7 +396,7 @@ void emitPhotons() {
   cout << "emitting photons from lights" << endl;
 
   for (int i = 0; i < numLights; i++) {
-    emitPhotonsFromLight(lights[i], numPhotons / numLights);
+    emitPhotonsFromLight(lights[i], NUM_PHOTONS / numLights);
   }
 
   cout << "finished emitting photons from lights" << endl;
@@ -400,9 +406,9 @@ void emitPhotons() {
   cout << "-------------------" << endl;
 }
 
-void emitPhotonsFromLight(LightSource &l, int numPhotons) {
+void emitPhotonsFromLight(LightSource &l, int NUM_PHOTONS) {
 
-  for(int i = 0; i < numPhotons; i++) {
+  for(int i = 0; i < NUM_PHOTONS; i++) {
     vec4 direction(1,1,1,1);
     vec4 position = sampleLightSource(l);
 
@@ -413,7 +419,7 @@ void emitPhotonsFromLight(LightSource &l, int numPhotons) {
       direction = normalize(direction);
     }
 
-    tracePhoton((l.watts / numPhotons) * l.color, position, direction, 0, none);
+    tracePhoton((l.watts / NUM_PHOTONS) * l.color, position, direction, 0, none);
   }
 }
 

@@ -25,10 +25,14 @@ SDL_Event event;
 #define NUM_PHOTONS 20000
 #define MAX_PHOTON_DEPTH 20
 #define NUM_NEAREST_PHOTONS 100
+#define FILTER_CONSTANT 0.05
 
 #define NUM_SHADOW_RAYS 20
 
+#define GLOBAL_REF_INDEX 1
+
 enum geometry {triangle, sphere};
+enum bounce {diffuse, specular, none};
 
 struct Intersection {
   vec4 position;
@@ -97,7 +101,10 @@ vec4 sampleLightSource(const LightSource& l);
 vec3 getClosestPhotonPower(Intersection& intersection, LightSource& l);
 vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, float maxRadius);
 void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<int>& indices);
+
 float getDist(vec4 a, vec4 b);
+vec4 reflect(vec4 dir, vec4 normal);
+vec4 refract(vec4 dir, vec4 normal, float n1, float n2);
 
 bool closestIntersection(vec4 start, vec4 dir, Intersection& closestIntersection);
 bool intersectTriangle(Intersection& closestIntersection, vec4 start, vec4 dir, vec4 v0, vec4 v1, vec4 v2, int index);
@@ -282,11 +289,28 @@ float getDist(vec4 a, vec4 b) {
   return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2) + pow(a.z - b.z, 2));
 }
 
+vec4 reflect(vec4 dir, vec4 normal) {
+  return normalize(dir - 2 * dot(dir, normal) * normal);
+}
+
+vec4 refract(vec4 dir, vec4 normal, float n1, float n2) {
+  float n = n1/n2;
+  float c1 = glm::clamp(dot(normal, dir), -1.0f, 1.0f);
+
+  float s = 1 - (n * n * (1 - c1 * c1));
+
+  if (s < 0) {
+    return reflect(dir, normal);
+  } else {
+    return normalize(n * dir + (n * c1 - sqrtf(s)) * normal);
+  }
+}
+
 vec4 sampleLightSource(const LightSource& l) {
   vec4 position(1,1,1,1);
 
   position.x = ((float) rand() / (RAND_MAX)) * l.width + (l.position.x - l.width/2);
-  position.y = ((float) rand() / (RAND_MAX)) * l.height + (l.position.y - l.height/2) + shadowBiasThreshold;
+  position.y = l.position.y + shadowBiasThreshold;
   position.z = ((float) rand() / (RAND_MAX)) * l.length + (l.position.z - l.length/2);
 
   return position;
@@ -343,7 +367,7 @@ vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numN
     }
   }
 
-  vec3 unitPower = accumPower / (float) ((4/3) * M_PI * pow(radius, 3));
+  vec3 unitPower = accumPower / (float) ((1 - FILTER_CONSTANT * 2/3) * M_PI * pow(radius, 2));
 
   return unitPower;
 }

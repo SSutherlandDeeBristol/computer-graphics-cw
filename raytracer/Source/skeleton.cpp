@@ -25,7 +25,9 @@ SDL_Event event;
 #define MAX_PHOTON_DEPTH 20
 #define FILTER_CONSTANT 0.05
 
-#define NUM_SHADOW_RAYS 20
+#define NUM_SHADOW_RAYS 10
+
+#define GLOBAL_REF_INDEX 1
 
 #define GLOBAL_REF_INDEX 1
 
@@ -34,6 +36,7 @@ enum bounce {diffuse, specular, none};
 
 struct Intersection {
   vec4 position;
+  vec4 direction;
   float distance;
   int index;
   geometry intersectionType;
@@ -277,6 +280,16 @@ void drawPhotons(screen* screen) {
     if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power);
   }
 
+  for (int i = 0; i < causticMap.size(); i++) {
+    Photon p = causticMap[i];
+
+    vec4 pos = R * p.position - cameraPos;
+
+    int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
+    int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
+    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power);
+  }
+
 }
 
 vec3 getClosestPhotonPower(Intersection& intersection) {
@@ -331,13 +344,13 @@ vec4 sampleLightSource(const LightSource& l) {
   return position;
 }
 
-void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<int>& indices) {
+void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<int>& indices, vector<Photon>& map) {
   vector<float> distances;
 
   indices.reserve(numNearest);
   indices.clear();
 
-  for (int i = 0; i < photonMap.size(); i++) {
+  for (int i = 0; i < map.size(); i++) {
     vec4 ipos = intersection.position;
     vec4 ppos = photonMap[i].position;
 
@@ -365,18 +378,18 @@ void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<i
   }
 }
 
-vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numNearest, float maxRadius) {
+vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numNearest, float maxRadius, vector<Photon>& map) {
   vector<int> nearestPhotonsIndex;
   vec3 accumPower = vec3(0,0,0);
   float radius = 0;
 
-  if (photonMap.size() < numNearest) return vec3(0,0,0);
+  if (map.size() < numNearest) return vec3(0,0,0);
 
-  getNearestPhotonsIndex(intersection, numNearest, nearestPhotonsIndex);
+  getNearestPhotonsIndex(intersection, numNearest, nearestPhotonsIndex, map);
 
   for (int i = 0; i < numNearest; i++) {
-    accumPower += photonMap[nearestPhotonsIndex[i]].power;
-    float dist = getDist(intersection.position, photonMap[nearestPhotonsIndex[i]].position);
+    accumPower += map[nearestPhotonsIndex[i]].power;
+    float dist = getDist(intersection.position, map[nearestPhotonsIndex[i]].position);
     if (dist > radius) {
       radius = dist;
     }
@@ -429,9 +442,22 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounc
   Intersection intersection;
 
   if (closestIntersection(start, direction, intersection)) {
-    Triangle triangle = triangles[intersection.index];
+    vec3 color(0.0,0.0,0.0);
+    vec4 normal(1,1,1,1);
+    Material material(color,color, 0.0);
 
-    Material material = triangle.material;
+    if (intersection.intersectionType == triangle) {
+      Triangle triangle = triangles[intersection.index];
+      material = triangle.material;
+      color = triangle.color;
+      normal = triangle.normal;
+    }
+    else if(intersection.intersectionType == sphere) {
+      Sphere sphere = spheres[intersection.index];
+      material = sphere.material;
+      color = sphere.color;
+      normal = normalize(intersection.position - sphere.centre);
+    }
 
     vec3 diffuseRef = material.diffuseRef;
     vec3 specRef = material.specRef;
@@ -446,15 +472,18 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounc
     // Probability of specular reflection
     float Ps = Pr - Pd;
 
-    float rnd = ((float) rand() / (RAND_MAX));
+    vec4 reflectionDir = reflect(direction, normal);
+    vec3 specPower = vec3(power.x * specRef.x / Ps, power.y * specRef.y / Ps, power.z * specRef.z / Ps);
+
+    float rnd = ((float) rand() / RAND_MAX);
 
     if (rnd < Pd) {
       //Diffuse reflection
-      vec4 reflectionDir = normalize(2 * dot(triangle.normal, direction) * triangle.normal - direction);
+      vec4 reflectionDir = normalize(2 * dot(normal, direction) * normal - direction);
       tracePhoton(power, intersection.position, reflectionDir, depth + 1, diffuse);
     } else if (rnd < Ps + Pd) {
       // Specular reflection
-      vec4 reflectionDir = normalize(2 * dot(triangle.normal, direction) * triangle.normal - direction);
+      vec4 reflectionDir = normalize(2 * dot(normal, direction) * normal - direction);
 
       vec3 specPower = vec3(power.x * specRef.x / Ps, power.y * specRef.y / Ps, power.z * specRef.z / Ps);
       tracePhoton(specPower, intersection.position, reflectionDir, depth + 1, specular);
@@ -464,14 +493,12 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounc
         Photon p;
         p.position = intersection.position;
         p.direction = direction;
-        p.power = triangle.color;
+        p.power = color;
 
         if (bounce == specular) causticMap.push_back(p);
         else photonMap.push_back(p);
       }
     }
-
-    return true;
   }
 
   return false;
@@ -479,7 +506,8 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounc
 
 vec3 getReflectedLight(Intersection& intersection, LightSource& l) {
   vec3 light(0,0,0);
-  light = getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS, 0.05);
+  light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS, 0.05, photonMap);
+  //light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS/2, 0.05, causticMap);
   return light;
 }
 
@@ -678,6 +706,7 @@ bool intersectTriangle(Intersection& closestIntersection, vec4 start, vec4 dir, 
         closestIntersection.position = position;
         closestIntersection.index = index;
         closestIntersection.intersectionType = triangle;
+        closestIntersection.direction = dir;
       }
     }
   }
@@ -716,6 +745,7 @@ bool intersectSphere(Intersection& closestIntersection, vec4 start, vec4 dir, ve
         closestIntersection.position = position;
         closestIntersection.index = index;
         closestIntersection.intersectionType = sphere;
+        closestIntersection.direction = dir;
       }
     }
   }
@@ -741,6 +771,7 @@ bool intersectSquare(Intersection& intersection, vec4 start, vec4 dir, vec4 posi
       intersectionFound = true;
       intersection.distance = dist;
       intersection.position = pos;
+      intersection.direction = dir;
     }
   }
 

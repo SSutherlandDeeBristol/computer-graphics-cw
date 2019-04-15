@@ -104,9 +104,10 @@ class Material {
 public:
 	vec3 diffuseRef;
 	vec3 specRef;
+  float refractiveIndex;
 
-	Material( vec3 diffuseRef, vec3 specRef)
-		: diffuseRef(diffuseRef), specRef(specRef)
+	Material( vec3 diffuseRef, vec3 specRef, float refractiveIndex)
+		: diffuseRef(diffuseRef), specRef(specRef), refractiveIndex(refractiveIndex)
 	{
 
 	}
@@ -173,18 +174,19 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	vec3 purple( 0.75f, 0.15f, 0.75f );
 	vec3 white(  0.75f, 0.75f, 0.75f );
 
-	float matteDiffuseRef = 0.2f;
+	float matteDiffuseRef = 0.1f;
 
 	// Define materials
-	Material matteWhite( white * matteDiffuseRef, vec3(0,0,0));
-	Material matteRed( red * matteDiffuseRef, vec3(0,0,0));
-	Material matteBlue( blue * matteDiffuseRef, vec3(0,0,0));
-	Material matteGreen( green * matteDiffuseRef, vec3(0,0,0));
-	Material matteYellow( yellow * matteDiffuseRef, vec3(0,0,0));
-	Material mattePurple( purple * matteDiffuseRef, vec3(0,0,0));
-	Material matteCyan( cyan * matteDiffuseRef, vec3(0,0,0));
+	Material matteWhite( white * matteDiffuseRef, vec3(0,0,0), 0.0f);
+	Material matteRed( red * matteDiffuseRef, vec3(0,0,0), 0.0f);
+	Material matteBlue( blue * matteDiffuseRef, vec3(0,0,0), 0.0f);
+	Material matteGreen( green * matteDiffuseRef, vec3(0,0,0), 0.0f);
+	Material matteYellow( yellow * matteDiffuseRef, vec3(0,0,0), 0.0f);
+	Material mattePurple( purple * matteDiffuseRef, vec3(0,0,0), 0.0f);
+	Material matteCyan( cyan * matteDiffuseRef, vec3(0,0,0), 0.0f);
 
-	Material mirror( vec3(0,0,0), vec3(1,1,1));
+	Material mirror( vec3(0,0,0), vec3(1,1,1), 0.0f);
+  Material glass( vec3(0,0,0), vec3(0.2,0.2,0.2), 1.5);
 
 	lights.clear();
 	lights.reserve( 1 );
@@ -210,9 +212,9 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	vec4 G(L,L,L,1);
 	vec4 H(0,L,L,1);
 
-	lights.push_back( LightSource( 30, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, -1, 0, 1), 0.35, 0.35) );
+	lights.push_back( LightSource( 20, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, -1, 0, 1), 0.35, 0.35) );
 
-	spheres.push_back( Sphere(vec4(0.4,0,-0.2,1), 0.2, white, matteWhite) );
+	spheres.push_back( Sphere(vec4(0.4,0,-0.2,1), 0.2, white, glass) );
 
 	// // Floor:
 	// triangles.push_back( Triangle( C, B, A, yellow, matteYellow ) );

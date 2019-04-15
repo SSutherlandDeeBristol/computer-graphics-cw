@@ -22,7 +22,6 @@ SDL_Event event;
 #define SCREEN_HEIGHT 300
 #define FULLSCREEN_MODE false
 
-#define NUM_PHOTONS 20000
 #define MAX_PHOTON_DEPTH 20
 #define NUM_NEAREST_PHOTONS 100
 #define FILTER_CONSTANT 0.05
@@ -48,6 +47,7 @@ struct Photon {
 };
 
 bool PHOTON_MAPPER = false;
+int numPhotons = 5000;
 
 const float focalLength = SCREEN_HEIGHT;
 const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
@@ -89,7 +89,7 @@ void lookAt(mat4& ctw);
 
 void emitPhotons();
 void emitPhotonsFromLight(LightSource &l, int numPhotons);
-bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth);
+bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounce);
 void drawPhotons(screen* screen);
 
 vec3 getReflectedLight(Intersection& intersection, LightSource& l);
@@ -115,6 +115,13 @@ int main(int argc, char* argv[]) {
   if (argc > 1) {
     if (strcmp("true", argv[1]) == 0) {
       PHOTON_MAPPER = true;
+      if (argc > 2) {
+        try {
+          numPhotons = std::stoi(argv[2]);
+        } catch (std::exception const &e) {
+          cout << "Could not parse number of photons, using default: " << numPhotons << endl;
+        }
+      }
     } else if (strcmp("false", argv[1]) == 0) {
       PHOTON_MAPPER = false;
     }
@@ -225,8 +232,10 @@ void Draw(screen* screen) {
   if (PHOTON_MAPPER) {
     for (int x = 0; x < SCREEN_WIDTH; x++) {
       for (int y = 0; y < SCREEN_HEIGHT; y++) {
-        //cout << glm::to_string(reflectedVals[x*SCREEN_HEIGHT + y]/maxPixelVal) << " " << glm::to_string(directVals[x*SCREEN_HEIGHT + y]) << endl;
-        vec3 light = directVals[x*SCREEN_HEIGHT + y] + reflectedVals[x*SCREEN_HEIGHT + y]/maxPixelVal + emmittedVals[x*SCREEN_HEIGHT + y];
+        vec3 directLight = directVals[x*SCREEN_HEIGHT + y];
+        vec3 reflectedLight = reflectedVals[x*SCREEN_HEIGHT + y]/maxPixelVal;
+        vec3 emmittedLight = emmittedVals[x*SCREEN_HEIGHT + y];
+        vec3 light = directLight + reflectedLight + emmittedLight;
         PutPixelSDL(screen, x, y, light);
       }
     }
@@ -373,7 +382,7 @@ vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numN
 }
 
 void emitPhotons() {
-  photonMap.reserve( NUM_PHOTONS );
+  photonMap.reserve( numPhotons );
 
   int numLights = lights.size();
 
@@ -381,15 +390,17 @@ void emitPhotons() {
   cout << "emitting photons from lights" << endl;
 
   for (int i = 0; i < numLights; i++) {
-    emitPhotonsFromLight(lights[i], NUM_PHOTONS / numLights);
+    emitPhotonsFromLight(lights[i], numPhotons / numLights);
   }
 
   cout << "finished emitting photons from lights" << endl;
   cout << "-------------------" << endl;
+  cout << "global photon map size: " << photonMap.size() << endl;
+  cout << "caustics photon map size: " << causticMap.size() << endl;
+  cout << "-------------------" << endl;
 }
 
 void emitPhotonsFromLight(LightSource &l, int numPhotons) {
-  int numIntersections = 0;
 
   for(int i = 0; i < numPhotons; i++) {
     vec4 direction(1,1,1,1);
@@ -402,13 +413,11 @@ void emitPhotonsFromLight(LightSource &l, int numPhotons) {
       direction = normalize(direction);
     }
 
-    if (tracePhoton((l.watts / numPhotons) * l.color, position, direction, 0)) numIntersections++;
+    tracePhoton((l.watts / numPhotons) * l.color, position, direction, 0, none);
   }
-
-  cout << "number of photon intersections: " << numIntersections << endl;
 }
 
-bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth) {
+bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounce) {
   if (depth > MAX_PHOTON_DEPTH) return false;
 
   Intersection intersection;
@@ -436,13 +445,13 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth) {
     if (rnd < Pd) {
       //Diffuse reflection
       vec4 reflectionDir = normalize(2 * dot(triangle.normal, direction) * triangle.normal - direction);
-      tracePhoton(power, intersection.position, reflectionDir, depth + 1);
+      tracePhoton(power, intersection.position, reflectionDir, depth + 1, diffuse);
     } else if (rnd < Ps + Pd) {
       // Specular reflection
       vec4 reflectionDir = normalize(2 * dot(triangle.normal, direction) * triangle.normal - direction);
 
       vec3 specPower = vec3(power.x * specRef.x / Ps, power.y * specRef.y / Ps, power.z * specRef.z / Ps);
-      tracePhoton(specPower, intersection.position, reflectionDir, depth + 1);
+      tracePhoton(specPower, intersection.position, reflectionDir, depth + 1, specular);
     } else {
       // Absorbtion
       if (depth > 0) {
@@ -450,7 +459,9 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth) {
         p.position = intersection.position;
         p.direction = direction;
         p.power = triangle.color;
-        photonMap.push_back(p);
+
+        if (bounce == specular) causticMap.push_back(p);
+        else photonMap.push_back(p);
       }
     }
 
@@ -518,7 +529,7 @@ vec3 getDirectLight(const Intersection& i, const LightSource& l) {
   float A = 4 * M_PI * pow(r, 2);
 
   vec3 B = l.color / A;
-  vec3 D = B * max(dot(rHat,nHat), 0.0f);
+  vec3 D = B * max(dot(rHat,normalize(l.direction)), 0.0f) * max(dot(rHat,nHat), 0.0f);
   vec3 C = D * color;
 
   Intersection intersection;

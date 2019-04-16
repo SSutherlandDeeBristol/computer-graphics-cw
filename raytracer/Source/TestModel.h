@@ -186,7 +186,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	Material matteCyan( cyan * matteDiffuseRef, vec3(0,0,0), 0.0f);
 
 	Material mirror( vec3(0,0,0), vec3(1,1,1), 0.0f);
-  Material glass( vec3(0,0,0), vec3(0.2,0.2,0.2), 1.5);
+  Material glass( vec3(0,0,0), vec3(0,0,0), 1.5);
 
 	lights.clear();
 	lights.reserve( 1 );
@@ -214,7 +214,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 
 	lights.push_back( LightSource( 30, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, 1, 0, 1), 0.35, 0.35) );
 
-	spheres.push_back( Sphere(vec4(0.4,0,-0.2,1), 0.2, white, glass) );
+	spheres.push_back( Sphere(vec4(0.4,0,-0.2,1), 0.2, white, mirror) );
 
 	// // Floor:
 	// triangles.push_back( Triangle( C, B, A, yellow, matteYellow ) );

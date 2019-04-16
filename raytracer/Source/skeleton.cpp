@@ -495,7 +495,7 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounc
       tracePhoton(specPower, intersection.position, reflectionDir, depth + 1, specular);
     } else {
       // Absorbtion
-      //if (depth > 0) {
+      if (depth > 0) {
         Photon p;
         p.position = intersection.position;
         p.direction = direction;
@@ -503,7 +503,7 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounc
 
         if (bounce == specular) causticMap.push_back(p);
         else photonMap.push_back(p);
-      //}
+      }
     }
   }
 
@@ -513,7 +513,7 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounc
 vec3 getReflectedLight(Intersection& intersection, LightSource& l) {
   vec3 light(0,0,0);
   light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS, 0.05, photonMap);
-  //light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS/2, 0.05, causticMap);
+  light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS/2, 0.05, causticMap);
   return light;
 }
 

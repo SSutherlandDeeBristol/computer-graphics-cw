@@ -489,25 +489,21 @@ bool tracePhoton(vec3 power, vec4 start, vec4 direction, int depth, bounce bounc
 
     if (rnd < Pd) {
       //Diffuse reflection
-      vec4 reflectionDir = normalize(2 * dot(normal, direction) * normal - direction);
       tracePhoton(power, intersection.position, reflectionDir, depth + 1, diffuse);
     } else if (rnd < Ps + Pd) {
       // Specular reflection
-      vec4 reflectionDir = normalize(2 * dot(normal, direction) * normal - direction);
-
-      vec3 specPower = vec3(power.x * specRef.x / Ps, power.y * specRef.y / Ps, power.z * specRef.z / Ps);
       tracePhoton(specPower, intersection.position, reflectionDir, depth + 1, specular);
     } else {
       // Absorbtion
-      if (depth > 0) {
+      //if (depth > 0) {
         Photon p;
         p.position = intersection.position;
         p.direction = direction;
-        p.power = color;
+        p.power = power * color;
 
         if (bounce == specular) causticMap.push_back(p);
         else photonMap.push_back(p);
-      }
+      //}
     }
   }
 
@@ -573,7 +569,7 @@ vec3 getDirectLight(const Intersection& i, const LightSource& l) {
   float A = 4 * M_PI * pow(r, 2);
 
   vec3 B = l.color / A;
-  vec3 D = B * max(dot(rHat,normalize(l.direction)), 0.0f) * max(dot(rHat,nHat), 0.0f);
+  vec3 D = B * max(dot(rHat,normalize(-l.direction)), 0.0f) * max(dot(rHat,nHat), 0.0f);
   vec3 C = D * color;
 
   Intersection intersection;

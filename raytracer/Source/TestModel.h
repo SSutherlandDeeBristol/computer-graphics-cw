@@ -212,7 +212,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	vec4 G(L,L,L,1);
 	vec4 H(0,L,L,1);
 
-	lights.push_back( LightSource( 20, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, -1, 0, 1), 0.35, 0.35) );
+	lights.push_back( LightSource( 30, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, -1, 0, 1), 0.35, 0.35) );
 
 	spheres.push_back( Sphere(vec4(0.4,0,-0.2,1), 0.2, white, glass) );
 

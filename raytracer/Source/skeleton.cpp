@@ -36,6 +36,7 @@ enum bounce {diffuse, specular, none};
 
 struct Intersection {
   vec4 position;
+  vec4 normal;
   vec4 direction;
   float distance;
   int index;
@@ -110,7 +111,7 @@ vec4 reflect(vec4 dir, vec4 normal);
 vec4 refract(vec4 dir, vec4 normal, float n1, float n2);
 
 bool closestIntersection(vec4 start, vec4 dir, Intersection& closestIntersection);
-bool intersectTriangle(Intersection& closestIntersection, vec4 start, vec4 dir, vec4 v0, vec4 v1, vec4 v2, int index);
+bool intersectTriangle(Intersection& closestIntersection, vec4 start, vec4 dir, vec4 v0, vec4 v1, vec4 v2, int index, vec4 normal);
 bool intersectSphere(Intersection& intersection, vec4 start, vec4 dir, vec3 centre, float radius, int index);
 bool intersectSquare(Intersection& intersection, vec4 start, vec4 dir, vec4 position, vec4 normal, float width, float length);
 
@@ -387,9 +388,18 @@ vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numN
 
   getNearestPhotonsIndex(intersection, numNearest, nearestPhotonsIndex, map);
 
+  float dist = 0;
+  vec4 projectedPhoton(1,1,1,1);
+  vec4 photonPos(1,1,1,1);
+
   for (int i = 0; i < numNearest; i++) {
     accumPower += map[nearestPhotonsIndex[i]].power;
-    float dist = getDist(intersection.position, map[nearestPhotonsIndex[i]].position);
+
+    photonPos = map[nearestPhotonsIndex[i]].position;
+    projectedPhoton = photonPos - dot(intersection.normal, (photonPos - intersection.position)) * intersection.normal;
+
+    dist = getDist(intersection.position, photonPos);
+
     if (dist > radius) {
       radius = dist;
     }
@@ -673,7 +683,7 @@ vec3 phongComputeLight( const Intersection &i, const PhongLightSource &l ) {
   return light;
 }
 
-bool intersectTriangle(Intersection& closestIntersection, vec4 start, vec4 dir, vec4 v0, vec4 v1, vec4 v2, int index) {
+bool intersectTriangle(Intersection& closestIntersection, vec4 start, vec4 dir, vec4 v0, vec4 v1, vec4 v2, int index, vec4 normal) {
   bool intersectionFound = false;
 
   vec3 e1 = vec3(v1.x-v0.x,v1.y-v0.y,v1.z-v0.z);
@@ -704,6 +714,7 @@ bool intersectTriangle(Intersection& closestIntersection, vec4 start, vec4 dir, 
         intersectionFound = true;
         closestIntersection.distance = dist;
         closestIntersection.position = position;
+        closestIntersection.normal = normal;
         closestIntersection.index = index;
         closestIntersection.intersectionType = triangle;
         closestIntersection.direction = dir;
@@ -743,6 +754,7 @@ bool intersectSphere(Intersection& closestIntersection, vec4 start, vec4 dir, ve
         intersectionFound = true;
         closestIntersection.distance = dist;
         closestIntersection.position = position;
+        closestIntersection.normal = normalize(position - vec4(ce, 1));
         closestIntersection.index = index;
         closestIntersection.intersectionType = sphere;
         closestIntersection.direction = dir;
@@ -789,8 +801,9 @@ bool closestIntersection(vec4 start, vec4 dir, Intersection& closestIntersection
     vec4 v0 = (PHOTON_MAPPER) ? triangles[i].v0 : phongTriangles[i].v0;
     vec4 v1 = (PHOTON_MAPPER) ? triangles[i].v1 : phongTriangles[i].v1;
     vec4 v2 = (PHOTON_MAPPER) ? triangles[i].v2 : phongTriangles[i].v2;
+    vec4 normal = (PHOTON_MAPPER) ? triangles[i].normal : phongTriangles[i].normal;
 
-    intersectionFound = intersectionFound | intersectTriangle(closestIntersection, start, dir, v0, v1, v2, i);
+    intersectionFound = intersectionFound | intersectTriangle(closestIntersection, start, dir, v0, v1, v2, i, normal);
   }
 
   int spheresSize = (PHOTON_MAPPER) ? spheres.size() : phongSpheres.size();

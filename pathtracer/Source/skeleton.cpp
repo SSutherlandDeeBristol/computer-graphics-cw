@@ -29,9 +29,10 @@ struct Intersection {
 const float focalLength = SCREEN_HEIGHT;
 const float shadowBiasThreshold = 0.001f;
 const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
-vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
+const vec4 defaultLightPos(0.0, -0.5, -0.7, 1.0);
 
-vec4 lightPos( 0, -0.5, -0.7, 1.0 );
+vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
+vec4 lightPos(0.0, -0.5, -0.7, 1.0);
 vec3 lightColor = 14.f * vec3( 1, 1, 1 );
 vec3 indirectLight = 0.5f * vec3( 1, 1, 1 );
 
@@ -53,10 +54,12 @@ vec3 DirectLight( const Intersection& i );
 void moveCameraRight(int direction);
 void moveCameraUp(int direction);
 void moveCameraForward(int direction);
-void lookAt(mat4& ctw);
+void lookAt(vec3 toPos);
+void resetView();
 
 int main(int argc, char* argv[]) {
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+  resetView();
   LoadTestModel(triangles);
 
   while (Update()) {
@@ -160,12 +163,8 @@ void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 
 void updateRotation() {
 	mat3 RT;
-
 	getRotationMatrix(pitch, yaw, 0, RT);
-
-	R = mat4(RT);
-
-	R = transpose(R);
+	R = transpose(mat4(RT));
 }
 
 void moveCameraRight(int direction, float distance) {
@@ -211,40 +210,21 @@ vec3 DirectLight( const Intersection& i ) {
 	return C;
 }
 
-void lookAt(mat4& ctw) { /* TODO! */
-	vec3 toPos = vec3(0, 0, 0);
-	// vec3 fromPos = vec3(cameraPos);
-	vec3 fromPos = vec3(cameraPos.x, cameraPos.y, cameraPos.z);
-
+void lookAt(vec3 toPos) {
+	vec3 fromPos = vec3(cameraPos);
 	vec3 forward = -normalize(fromPos - toPos);
-
-	vec3 tmp = vec3(0, 1, 0);
-	vec3 right = cross(normalize(tmp), forward);
-
-	vec3 up = cross(forward, right);
-
-	ctw[0][0] = right.x;
-	ctw[0][1] = right.y;
-	ctw[0][2] = right.z;
-	ctw[1][0] = up.x;
-	ctw[1][1] = up.y;
-	ctw[1][2] = up.z;
-	ctw[2][0] = forward.x;
-	ctw[2][1] = forward.y;
-	ctw[2][2] = forward.z;
-
-	ctw[3][0] = fromPos.x;
-	ctw[3][1] = fromPos.y;
-	ctw[3][2] = fromPos.z;
-
-	ctw[3][3] = 1;
-
-  //ctw = transpose(ctw);
-	R = ctw;
 
   pitch = asin(-forward.y);
   yaw = atan2(forward.x, forward.z);
 
+  updateRotation();
+}
+
+void resetView() {
+  cameraPos = defaultCameraPos;
+  lightPos = defaultLightPos;
+  pitch = 0;
+  yaw = 0;
   updateRotation();
 }
 
@@ -257,10 +237,7 @@ bool Update() {
   t = t2;
 
   std::cout << "Render time: " << dt << " ms." << std::endl;
-
 	// std::cout << "cx: " << cameraPos.x << ", cy:" << cameraPos.y << ", cz:"<< cameraPos.z << std::endl;
-
-	mat4 ctw;
 
   SDL_Event e;
   while(SDL_PollEvent(&e)) {
@@ -287,14 +264,11 @@ bool Update() {
           break;
 				case SDLK_r:
 					/* Look-At function, points camera to 0,0,0 */
-					lookAt(ctw);
+					lookAt(vec3(0, 0, 0));
 					break;
         case SDLK_t:
           // Reset camera position
-          cameraPos = defaultCameraPos;
-          pitch = 0;
-          yaw = 0;
-          updateRotation();
+          resetView();
           break;
 				case SDLK_w:
 					moveCameraUp(-1, 0.25);

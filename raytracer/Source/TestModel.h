@@ -212,20 +212,20 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	vec4 G(L,L,L,1);
 	vec4 H(0,L,L,1);
 
-	//lights.push_back( LightSource( 40, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, 1, 0, 1), 0.35, 0.35) );
-  float middleX = 0.0;
-  float middleZ = -0.5;
-  float width = 0.25;
-  float length = 0.25;
-  float seperation = 0.03;
-
-  float offsetX = (width / 2 + seperation);
-  float offsetZ = (length / 2 + seperation);
-
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX + offsetX, -1.0, middleZ + offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX + offsetX, -1.0, middleZ - offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX - offsetX, -1.0, middleZ + offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX - offsetX, -1.0, middleZ - offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
+	lights.push_back( LightSource( 70, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, 1, 0, 1), 0.35, 0.35) );
+  // float middleX = 0.0;
+  // float middleZ = -0.5;
+  // float width = 0.25;
+  // float length = 0.25;
+  // float seperation = 0.03;
+  //
+  // float offsetX = (width / 2 + seperation);
+  // float offsetZ = (length / 2 + seperation);
+  //
+  // lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX + offsetX, -1.0, middleZ + offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
+  // lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX + offsetX, -1.0, middleZ - offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
+  // lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX - offsetX, -1.0, middleZ + offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
+  // lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX - offsetX, -1.0, middleZ - offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
 
 	spheres.push_back( Sphere(vec4(0.3,0.6,-0.2,1), 0.2, white, glass) );
 

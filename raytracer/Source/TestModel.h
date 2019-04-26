@@ -174,10 +174,10 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	vec3 purple( 0.75f, 0.15f, 0.75f );
 	vec3 white(  0.75f, 0.75f, 0.75f );
 
-	float matteDiffuseRef = 0.1f;
+	float matteDiffuseRef = 0.2f;
 
 	// Define materials
-	Material matteWhite( white * matteDiffuseRef, vec3(0,0,0), 0.0f);
+	Material matteWhite( white * 0.05f, vec3(0,0,0), 0.0f);
 	Material matteRed( red * matteDiffuseRef, vec3(0,0,0), 0.0f);
 	Material matteBlue( blue * matteDiffuseRef, vec3(0,0,0), 0.0f);
 	Material matteGreen( green * matteDiffuseRef, vec3(0,0,0), 0.0f);
@@ -186,10 +186,10 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	Material matteCyan( cyan * matteDiffuseRef, vec3(0,0,0), 0.0f);
 
 	Material mirror( vec3(0,0,0), vec3(1,1,1), 0.0f);
-  Material glass( vec3(0,0,0), vec3(0,0,0), 1.5);
+  Material glass( vec3(0,0,0), vec3(0,0,0), 1.5f);
 
 	lights.clear();
-	lights.reserve( 1 );
+	lights.reserve( 2 );
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
@@ -212,29 +212,22 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	vec4 G(L,L,L,1);
 	vec4 H(0,L,L,1);
 
-	lights.push_back( LightSource( 30, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, 1, 0, 1), 0.35, 0.35) );
+	//lights.push_back( LightSource( 40, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, 1, 0, 1), 0.35, 0.35) );
+  float middleX = 0.0;
+  float middleZ = -0.5;
+  float width = 0.25;
+  float length = 0.25;
+  float seperation = 0.03;
 
-	spheres.push_back( Sphere(vec4(0.4,0,-0.2,1), 0.2, white, mirror) );
+  float offsetX = (width / 2 + seperation);
+  float offsetZ = (length / 2 + seperation);
 
-	// // Floor:
-	// triangles.push_back( Triangle( C, B, A, yellow, matteYellow ) );
-	// triangles.push_back( Triangle( C, D, B, yellow, matteYellow ) );
-	//
-	// // Left wall
-	// triangles.push_back( Triangle( A, E, C, red, matteRed ) );
-	// triangles.push_back( Triangle( C, E, G, red, matteRed ) );
-	//
-	// // Right wall
-	// triangles.push_back( Triangle( F, B, D, blue, matteBlue ) );
-	// triangles.push_back( Triangle( H, F, D, blue, matteBlue ) );
-	//
-	// // Ceiling
-	// triangles.push_back( Triangle( E, F, G, white, matteWhite ) );
-	// triangles.push_back( Triangle( F, H, G, white, matteWhite ) );
-	//
-	// // Back wall
-	// triangles.push_back( Triangle( G, D, C, cyan, matteCyan ) );
-	// triangles.push_back( Triangle( G, H, D, cyan, matteCyan ) );
+  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX + offsetX, -1.0, middleZ + offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
+  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX + offsetX, -1.0, middleZ - offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
+  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX - offsetX, -1.0, middleZ + offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
+  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX - offsetX, -1.0, middleZ - offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
+
+	spheres.push_back( Sphere(vec4(0.3,0.6,-0.2,1), 0.2, white, glass) );
 
 	// Floor:
 	triangles.push_back( Triangle( C, B, A, white, matteWhite ) );
@@ -270,24 +263,24 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	H = vec4( 82,165,225,1);
 
 	// Front
-	triangles.push_back( Triangle(E,B,A,white,matteWhite) );
-	triangles.push_back( Triangle(E,F,B,white,matteWhite) );
-
-	// Front
-	triangles.push_back( Triangle(F,D,B,white,matteWhite) );
-	triangles.push_back( Triangle(F,H,D,white,matteWhite) );
-
-	// BACK
-	triangles.push_back( Triangle(H,C,D,white,matteWhite) );
-	triangles.push_back( Triangle(H,G,C,white,matteWhite) );
-
-	// LEFT
-	triangles.push_back( Triangle(G,E,C,white,matteWhite) );
-	triangles.push_back( Triangle(E,A,C,white,matteWhite) );
-
-	// TOP
-	triangles.push_back( Triangle(G,F,E,white,matteWhite) );
-	triangles.push_back( Triangle(G,H,F,white,matteWhite) );
+	// triangles.push_back( Triangle(E,B,A,white,matteWhite) );
+	// triangles.push_back( Triangle(E,F,B,white,matteWhite) );
+  //
+	// // Front
+	// triangles.push_back( Triangle(F,D,B,white,matteWhite) );
+	// triangles.push_back( Triangle(F,H,D,white,matteWhite) );
+  //
+	// // BACK
+	// triangles.push_back( Triangle(H,C,D,white,matteWhite) );
+	// triangles.push_back( Triangle(H,G,C,white,matteWhite) );
+  //
+	// // LEFT
+	// triangles.push_back( Triangle(G,E,C,white,matteWhite) );
+	// triangles.push_back( Triangle(E,A,C,white,matteWhite) );
+  //
+	// // TOP
+	// triangles.push_back( Triangle(G,F,E,white,matteWhite) );
+	// triangles.push_back( Triangle(G,H,F,white,matteWhite) );
 
 	// ---------------------------------------------------------------------------
 	// Tall block
@@ -301,26 +294,6 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	F = vec4(265,330,296,1);
 	G = vec4(472,330,406,1);
 	H = vec4(314,330,456,1);
-
-	// // Front
-	// triangles.push_back( Triangle(E,B,A,purple,mattePurple) );
-	// triangles.push_back( Triangle(E,F,B,purple,mattePurple) );
-	//
-	// // Front
-	// triangles.push_back( Triangle(F,D,B,purple,mattePurple) );
-	// triangles.push_back( Triangle(F,H,D,purple,mattePurple) );
-	//
-	// // BACK
-	// triangles.push_back( Triangle(H,C,D,purple,mattePurple) );
-	// triangles.push_back( Triangle(H,G,C,purple,mattePurple) );
-	//
-	// // LEFT
-	// triangles.push_back( Triangle(G,E,C,purple,mattePurple) );
-	// triangles.push_back( Triangle(E,A,C,purple,mattePurple) );
-	//
-	// // TOP
-	// triangles.push_back( Triangle(G,F,E,purple,mattePurple) );
-	// triangles.push_back( Triangle(G,H,F,purple,mattePurple) );
 
 	// Front
 	triangles.push_back( Triangle(E,B,A,white,matteWhite) );

@@ -15,13 +15,13 @@ using glm::distance;
 // Used to describe a light
 class PhongLightSource {
 public:
-  vec4 position;
+  vec3 position;
   vec3 color;
 	float ambientIntensity;
 	float diffuseIntensity;
 	float specularIntensity;
 
-  PhongLightSource(const vec4 &p, const vec3 &c, const float &am, const float &di, const float &sp)
+  PhongLightSource(const vec3 &p, const vec3 &c, const float &am, const float &di, const float &sp)
 		: position(p), color(c), ambientIntensity(am), diffuseIntensity(di), specularIntensity(sp)
   {
 
@@ -46,13 +46,13 @@ public:
 // Used to describe a triangular surface:
 class PhongTriangle {
 public:
-	vec4 v0;
-	vec4 v1;
-	vec4 v2;
-	vec4 normal;
+	vec3 v0;
+	vec3 v1;
+	vec3 v2;
+	vec3 normal;
 	PhongMaterial material;
 
-	PhongTriangle( vec4 v0, vec4 v1, vec4 v2, PhongMaterial material )
+	PhongTriangle( vec3 v0, vec3 v1, vec3 v2, PhongMaterial material )
 		: v0(v0), v1(v1), v2(v2), material(material)
 	{
 		ComputeNormal();
@@ -66,18 +66,17 @@ public:
 	  normal.x = normal3.x;
 	  normal.y = normal3.y;
 	  normal.z = normal3.z;
-	  normal.w = 1.0;
 	}
 };
 
 // Used to describe a spherical surface:
 class PhongSphere {
 public:
-	glm::vec4 centre;
+	vec3 centre;
 	float radius;
 	PhongMaterial material;
 
-	PhongSphere( glm::vec4 centre, float radius, PhongMaterial material )
+	PhongSphere( vec3 centre, float radius, PhongMaterial material )
 		: centre(centre), radius(radius), material(material)
 	{
 
@@ -88,12 +87,12 @@ class LightSource {
 public:
 	float watts;
 	vec3 color;
-	vec4 position;
-	vec4 direction;
+	vec3 position;
+	vec3 direction;
 	float width;
 	float length;
 
-	LightSource( float watts, vec3 color, vec4 position, vec4 direction, float width, float length)
+	LightSource( float watts, vec3 color, vec3 position, vec3 direction, float width, float length)
 		: watts(watts), color(color), position(position), direction(direction), width(width), length(length)
 	{
 
@@ -116,14 +115,14 @@ public:
 // Used to describe a triangular surface:
 class Triangle {
 public:
-	vec4 v0;
-	vec4 v1;
-	vec4 v2;
-	vec4 normal;
+	vec3 v0;
+	vec3 v1;
+	vec3 v2;
+	vec3 normal;
 	vec3 color;
 	Material material;
 
-	Triangle( vec4 v0, vec4 v1, vec4 v2, vec3 color, Material material )
+	Triangle( vec3 v0, vec3 v1, vec3 v2, vec3 color, Material material )
 		: v0(v0), v1(v1), v2(v2), color(color), material(material)
 	{
 		ComputeNormal();
@@ -137,19 +136,18 @@ public:
 	  normal.x = normal3.x;
 	  normal.y = normal3.y;
 	  normal.z = normal3.z;
-	  normal.w = 1.0;
 	}
 };
 
 // Used to describe a spherical surface:
 class Sphere {
 public:
-	vec4 centre;
+	vec3 centre;
 	float radius;
 	vec3 color;
 	Material material;
 
-	Sphere( vec4 centre, float radius, vec3 color, Material material )
+	Sphere( vec3 centre, float radius, vec3 color, Material material )
 		: centre(centre), radius(radius), color(color), material(material)
 	{
 
@@ -160,11 +158,7 @@ public:
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spheres, std::vector<LightSource>& lights)
-{
-	using glm::vec3;
-	using glm::vec4;
-
+void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spheres, std::vector<LightSource>& lights) {
 	// Defines colors:
 	vec3 red(    0.75f, 0.15f, 0.15f );
 	vec3 yellow( 0.75f, 0.75f, 0.15f );
@@ -202,17 +196,17 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 
 	float L = 555;			// Length of Cornell Box side.
 
-	vec4 A(L,0,0,1);
-	vec4 B(0,0,0,1);
-	vec4 C(L,0,L,1);
-	vec4 D(0,0,L,1);
+	vec3 A(L,0,0);
+	vec3 B(0,0,0);
+	vec3 C(L,0,L);
+	vec3 D(0,0,L);
 
-	vec4 E(L,L,0,1);
-	vec4 F(0,L,0,1);
-	vec4 G(L,L,L,1);
-	vec4 H(0,L,L,1);
+	vec3 E(L,L,0);
+	vec3 F(0,L,0);
+	vec3 G(L,L,L);
+	vec3 H(0,L,L);
 
-	//lights.push_back( LightSource( 70, vec3(1, 1, 1), vec4(0, -1.0, -0.5, 1), vec4(0, 1, 0, 1), 0.35, 0.35) );
+	//lights.push_back( LightSource( 40, vec3(1, 1, 1), vec3(0, -1.0, -0.5), vec3(0, 1, 0), 0.4, 0.4) );
   float middleX = 0.0;
   float middleZ = -0.5;
   float width = 0.25;
@@ -222,12 +216,12 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
   float offsetX = (width / 2 + seperation);
   float offsetZ = (length / 2 + seperation);
 
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX + offsetX, -1.0, middleZ + offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX + offsetX, -1.0, middleZ - offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX - offsetX, -1.0, middleZ + offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec4(middleX - offsetX, -1.0, middleZ - offsetZ, 1), vec4(0, 1, 0, 1), width, length) );
+  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec3(middleX + offsetX, -1.0, middleZ + offsetZ), vec3(0, 1, 0), width, length) );
+  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec3(middleX + offsetX, -1.0, middleZ - offsetZ), vec3(0, 1, 0), width, length) );
+  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec3(middleX - offsetX, -1.0, middleZ + offsetZ), vec3(0, 1, 0), width, length) );
+  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec3(middleX - offsetX, -1.0, middleZ - offsetZ), vec3(0, 1, 0), width, length) );
 
-	spheres.push_back( Sphere(vec4(0.3,0.7,0.0,1), 0.2, white, glass) );
+	spheres.push_back( Sphere(vec3(0.3,0.7,0.0), 0.2, white, glass) );
 
 	// Floor:
 	triangles.push_back( Triangle( C, B, A, white, matteWhite ) );
@@ -252,15 +246,15 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	// ---------------------------------------------------------------------------
 	// Short block
 
-	A = vec4(290,0,114,1);
-	B = vec4(130,0, 65,1);
-	C = vec4(240,0,272,1);
-	D = vec4( 82,0,225,1);
+	A = vec3(290,0,114);
+	B = vec3(130,0, 65);
+	C = vec3(240,0,272);
+	D = vec3( 82,0,225);
 
-	E = vec4(290,165,114,1);
-	F = vec4(130,165, 65,1);
-	G = vec4(240,165,272,1);
-	H = vec4( 82,165,225,1);
+	E = vec3(290,165,114);
+	F = vec3(130,165, 65);
+	G = vec3(240,165,272);
+	H = vec3( 82,165,225);
 
 	// Front
 	// triangles.push_back( Triangle(E,B,A,white,matteWhite) );
@@ -285,15 +279,15 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	// ---------------------------------------------------------------------------
 	// Tall block
 
-	A = vec4(423,0,247,1);
-	B = vec4(265,0,296,1);
-	C = vec4(472,0,406,1);
-	D = vec4(314,0,456,1);
+	A = vec3(423,0,247);
+	B = vec3(265,0,296);
+	C = vec3(472,0,406);
+	D = vec3(314,0,456);
 
-	E = vec4(423,330,247,1);
-	F = vec4(265,330,296,1);
-	G = vec4(472,330,406,1);
-	H = vec4(314,330,456,1);
+	E = vec3(423,330,247);
+	F = vec3(265,330,296);
+	G = vec3(472,330,406);
+	H = vec3(314,330,456);
 
 	// Front
 	triangles.push_back( Triangle(E,B,A,white,matteWhite) );
@@ -334,9 +328,9 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 		triangles[i].v1 *= 2/L;
 		triangles[i].v2 *= 2/L;
 
-		triangles[i].v0 -= vec4(1,1,1,1);
-		triangles[i].v1 -= vec4(1,1,1,1);
-		triangles[i].v2 -= vec4(1,1,1,1);
+		triangles[i].v0 -= vec3(1,1,1);
+		triangles[i].v1 -= vec3(1,1,1);
+		triangles[i].v2 -= vec3(1,1,1);
 
 		triangles[i].v0.x *= -1;
 		triangles[i].v1.x *= -1;
@@ -345,10 +339,6 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 		triangles[i].v0.y *= -1;
 		triangles[i].v1.y *= -1;
 		triangles[i].v2.y *= -1;
-
-		triangles[i].v0.w = 1.0;
-		triangles[i].v1.w = 1.0;
-		triangles[i].v2.w = 1.0;
 
 		triangles[i].ComputeNormal();
 	}
@@ -398,15 +388,15 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 
 	float L = 555;			// Length of Cornell Box side.
 
-	vec4 A(L,0,0,1);
-	vec4 B(0,0,0,1);
-	vec4 C(L,0,L,1);
-	vec4 D(0,0,L,1);
+  vec3 A(L,0,0);
+	vec3 B(0,0,0);
+	vec3 C(L,0,L);
+	vec3 D(0,0,L);
 
-	vec4 E(L,L,0,1);
-	vec4 F(0,L,0,1);
-	vec4 G(L,L,L,1);
-	vec4 H(0,L,L,1);
+	vec3 E(L,L,0);
+	vec3 F(0,L,0);
+	vec3 G(L,L,L);
+	vec3 H(0,L,L);
 
 	// Floor:
 	triangles.push_back( PhongTriangle( C, B, A, matteGreen ) );
@@ -431,15 +421,15 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 	// ---------------------------------------------------------------------------
 	// Short block
 
-	A = vec4(290,0,114,1);
-	B = vec4(130,0, 65,1);
-	C = vec4(240,0,272,1);
-	D = vec4( 82,0,225,1);
+  A = vec3(290,0,114);
+	B = vec3(130,0, 65);
+	C = vec3(240,0,272);
+	D = vec3( 82,0,225);
 
-	E = vec4(290,165,114,1);
-	F = vec4(130,165, 65,1);
-	G = vec4(240,165,272,1);
-	H = vec4( 82,165,225,1);
+	E = vec3(290,165,114);
+	F = vec3(130,165, 65);
+	G = vec3(240,165,272);
+	H = vec3( 82,165,225);
 
 	// Front
 	triangles.push_back( PhongTriangle(E,B,A,matteRed) );
@@ -464,15 +454,15 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 	// ---------------------------------------------------------------------------
 	// Tall block
 
-	A = vec4(423,0,247,1);
-	B = vec4(265,0,296,1);
-	C = vec4(472,0,406,1);
-	D = vec4(314,0,456,1);
+  A = vec3(423,0,247);
+	B = vec3(265,0,296);
+	C = vec3(472,0,406);
+	D = vec3(314,0,456);
 
-	E = vec4(423,330,247,1);
-	F = vec4(265,330,296,1);
-	G = vec4(472,330,406,1);
-	H = vec4(314,330,456,1);
+	E = vec3(423,330,247);
+	F = vec3(265,330,296);
+	G = vec3(472,330,406);
+	H = vec3(314,330,456);
 
 	// Front
 	triangles.push_back( PhongTriangle(E,B,A,matteBlue) );
@@ -498,8 +488,8 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 	// Spheres
 	// ---------------------------------------------------------------------------
 
-	spheres.push_back( PhongSphere(vec4(0.4,0,-0.2,1), 0.3, shinyPurple) );
-	spheres.push_back( PhongSphere(vec4(-0.4,0.7,-0.8,1), 0.2, shinyYellow) );
+	spheres.push_back( PhongSphere(vec3(0.4,0,-0.2), 0.3, shinyPurple) );
+	spheres.push_back( PhongSphere(vec3(-0.4,0.7,-0.8), 0.2, shinyYellow) );
 
 	// ---------------------------------------------------------------------------
 	// Lights
@@ -507,7 +497,7 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 
 	//lights.push_back( Light(vec4(0.5,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
 	//lights.push_back( Light(vec4(-0.5,-0.5,-0.7,1.0), vec3(1,1,1), 0.02f, 0.3f, 1.0f ));
-	lights.push_back( PhongLightSource(vec4(0.0,-0.5,-0.7,1.0), vec3(1.0,1.0,1.0), 0.02f, 0.3f, 1.0f ));
+	lights.push_back( PhongLightSource(vec3(0.0,-0.5,-0.7), vec3(1.0,1.0,1.0), 0.02f, 0.3f, 1.0f ));
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3
@@ -518,9 +508,9 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 		triangles[i].v1 *= 2/L;
 		triangles[i].v2 *= 2/L;
 
-		triangles[i].v0 -= vec4(1,1,1,1);
-		triangles[i].v1 -= vec4(1,1,1,1);
-		triangles[i].v2 -= vec4(1,1,1,1);
+		triangles[i].v0 -= vec3(1,1,1);
+		triangles[i].v1 -= vec3(1,1,1);
+		triangles[i].v2 -= vec3(1,1,1);
 
 		triangles[i].v0.x *= -1;
 		triangles[i].v1.x *= -1;
@@ -529,10 +519,6 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 		triangles[i].v0.y *= -1;
 		triangles[i].v1.y *= -1;
 		triangles[i].v2.y *= -1;
-
-		triangles[i].v0.w = 1.0;
-		triangles[i].v1.w = 1.0;
-		triangles[i].v2.w = 1.0;
 
 		triangles[i].ComputeNormal();
 	}

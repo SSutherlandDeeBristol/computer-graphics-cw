@@ -35,6 +35,7 @@ std::uniform_real_distribution<float> distribution(0, 1);
 
 const float focalLength = SCREEN_HEIGHT;
 const float shadowBiasThreshold = 0.001f;
+const float bounceBiasThreshold = 0.01f;
 const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
 const vec4 defaultLightPos(0.0, -0.5, -0.7, 1.0);
 
@@ -146,7 +147,7 @@ vec3 CastRay(vec4 start, vec4 dir, const vector<Triangle>& triangles, int depth)
       vec4 sampleWorldSpace = vec4(sample * sampleTransform, 1);
 
       /* Fire a recursive ray in this sample direction, weighting the result */
-      indirectLight += r1 * CastRay(intersection.position, normalize(sampleWorldSpace), triangles, depth + 1) / pdf;
+      indirectLight += r1 * CastRay(intersection.position - (dir * bounceBiasThreshold), normalize(sampleWorldSpace), triangles, depth + 1) / pdf;
     }
 
     /* Average the sum of the samples */

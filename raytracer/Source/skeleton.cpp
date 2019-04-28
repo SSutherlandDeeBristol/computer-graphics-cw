@@ -84,17 +84,13 @@ float pitch = 0;
 bool Update();
 void Draw(screen* screen);
 
-void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
-void updateRotation();
-void moveCameraRight(int direction);
-void moveCameraUp(int direction);
-void moveCameraForward(int direction);
-void lookAt(mat4& ctw);
-
 void emitPhotons();
 void emitPhotonsFromLight(LightSource &l, int NUM_PHOTONS);
 bool tracePhoton(vec3 power, vec3 start, vec3 direction, int depth, bounce bounce);
 void drawPhotons(screen* screen);
+
+vec3 getPhongPixelValue(vec4 direction);
+vec3 getPixelValue(vec4 direction);
 
 vec3 getReflectedLight(Intersection& intersection, LightSource& l);
 vec3 phongComputeLight(const Intersection &i, const PhongLightSource &l);
@@ -117,6 +113,13 @@ bool intersectSphere(Intersection& intersection, vec4 start, vec4 dir, vec3 cent
 bool intersectSquare(Intersection& intersection, vec4 start, vec4 dir, vec4 position, vec4 normal, float width, float length);
 
 Material getMaterial(Intersection& intersection);
+
+void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R);
+void updateRotation();
+void moveCameraRight(int direction);
+void moveCameraUp(int direction);
+void moveCameraForward(int direction);
+void lookAt(mat4& ctw);
 
 int main(int argc, char* argv[]) {
   if (argc > 1) {
@@ -176,83 +179,70 @@ void Draw(screen* screen) {
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
-  vec3 maximumPixel(70,70,70);
-  float maxPixelVal;
-  vector<vec3> reflectedVals;
-  vector<vec3> directVals;
-  vector<vec3> emmittedVals;
-
-  reflectedVals.reserve(SCREEN_WIDTH * SCREEN_HEIGHT);
-  directVals.reserve(SCREEN_WIDTH * SCREEN_HEIGHT);
-  emmittedVals.reserve(SCREEN_WIDTH * SCREEN_HEIGHT);
-
   for (int x = 0; x < SCREEN_WIDTH; x++) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
+
       vec4 d = normalize(R * vec4(x - SCREEN_WIDTH/2, y - SCREEN_HEIGHT/2, focalLength, 1));
-      Intersection intersection;
 
-      vec3 directLight(0.0, 0.0, 0.0); // The direct colour
-			vec3 reflectedLight(0.0, 0.0, 0.0); // The reflected colour
-      vec3 emmittedLight(0.0,0.0,0.0);
-			vec3 colour(0.0, 0.0, 0.0); // The original colour of the triangle
-
-      if (!PHOTON_MAPPER) {
-        if (closestIntersection(cameraPos, d, intersection)) {
-          if (intersection.intersectionType == triangle) {
-            colour = phongTriangles[intersection.index].material.color;
-          } else if (intersection.intersectionType == sphere) {
-            colour = phongSpheres[intersection.index].material.color;
-          }
-
-          for (std::vector<PhongLightSource>::size_type i = 0; i < phongLights.size(); i++) {
-            directLight += phongComputeLight(intersection, phongLights[i]);
-          }
-
-  				directLight = colour * (directLight + indirectLight);
-        }
-
-        PutPixelSDL(screen, x, y, directLight);
+      if (PHOTON_MAPPER) {
+        PutPixelSDL(screen, x, y, getPixelValue(d));
       } else {
-        Intersection lightIntersection;
-
-        for (int i = 0; i < lights.size(); i++) {
-          LightSource l = lights[i];
-
-          if (intersectSquare(lightIntersection, cameraPos, d, l.position, l.direction, l.width, l.length)) {
-            emmittedLight += l.watts * l.color;
-          }
-        }
-
-        emmittedVals.push_back(emmittedLight);
-
-        if (closestIntersection(cameraPos, d, intersection)) {
-          for (int i = 0; i < lights.size(); i++) {
-            reflectedLight += getReflectedLight(intersection, lights[i]);
-            directLight += getDirectLight(intersection, lights[i]);
-          }
-        }
-
-        if (reflectedLight.x > maxPixelVal) maxPixelVal = reflectedLight.x;
-        if (reflectedLight.y > maxPixelVal) maxPixelVal = reflectedLight.y;
-        if (reflectedLight.z > maxPixelVal) maxPixelVal = reflectedLight.z;
-
-        directVals.push_back(directLight);
-        reflectedVals.push_back(reflectedLight);
+        PutPixelSDL(screen, x, y, getPhongPixelValue(d));
       }
     }
   }
+}
 
-  if (PHOTON_MAPPER) {
-    for (int x = 0; x < SCREEN_WIDTH; x++) {
-      for (int y = 0; y < SCREEN_HEIGHT; y++) {
-        vec3 directLight = directVals[x*SCREEN_HEIGHT + y];
-        vec3 reflectedLight = reflectedVals[x*SCREEN_HEIGHT + y];
-        vec3 emmittedLight = emmittedVals[x*SCREEN_HEIGHT + y];
-        vec3 light = directLight + reflectedLight + emmittedLight;
-        PutPixelSDL(screen, x, y, light);
-      }
+vec3 getPhongPixelValue(vec4 direction) {
+  vec3 colour(0.0,0.0,0.0);
+  vec3 light(0.0,0.0,0.0);
+
+  Intersection intersection;
+
+  if (closestIntersection(cameraPos, direction, intersection)) {
+    if (intersection.intersectionType == triangle) {
+      colour = phongTriangles[intersection.index].material.color;
+    } else if (intersection.intersectionType == sphere) {
+      colour = phongSpheres[intersection.index].material.color;
+    }
+
+    for (int i = 0; i < phongLights.size(); i++) {
+      light += phongComputeLight(intersection, phongLights[i]);
+    }
+
+    light = colour * (light + indirectLight);
+  }
+
+  return light;
+}
+
+vec3 getPixelValue(vec4 direction) {
+  vec3 colour(0.0,0.0,0.0);
+  vec3 emmittedLight(0.0,0.0,0.0);
+  vec3 reflectedLight(0.0,0.0,0.0);
+  vec3 directLight(0.0,0.0,0.0);
+
+  Intersection lightIntersection;
+  Intersection intersection;
+
+  for (int i = 0; i < lights.size(); i++) {
+    LightSource l = lights[i];
+
+    if (intersectSquare(lightIntersection, cameraPos, direction, l.position, l.direction, l.width, l.length)) {
+      emmittedLight += l.watts * l.color;
     }
   }
+
+  if (closestIntersection(cameraPos, direction, intersection)) {
+    for (int i = 0; i < lights.size(); i++) {
+      reflectedLight += getReflectedLight(intersection, lights[i]);
+      directLight += getDirectLight(intersection, lights[i]);
+    }
+  }
+
+  colour = directLight + reflectedLight + emmittedLight;
+
+  return colour;
 }
 
 void drawPhotons(screen* screen) {

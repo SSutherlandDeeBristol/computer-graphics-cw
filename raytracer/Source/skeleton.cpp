@@ -23,7 +23,7 @@ SDL_Event event;
 #define FULLSCREEN_MODE false
 
 #define MAX_PHOTON_DEPTH 20
-#define FILTER_CONSTANT 0.05
+#define FILTER_CONSTANT 1
 
 // Must be square number
 #define NUM_SHADOW_RAYS 36
@@ -415,7 +415,7 @@ void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<i
 vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numNearest, float maxRadius, vector<Photon>& map) {
   vector<int> nearestPhotonsIndex;
   vec3 accumPower = vec3(0,0,0);
-  float radius = 0;
+  float radius = -1;
 
   if (map.size() < numNearest) return vec3(0,0,0);
 
@@ -426,8 +426,6 @@ vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numN
   vec4 photonPos(1,1,1,1);
 
   for (int i = 0; i < numNearest; i++) {
-    accumPower += map[nearestPhotonsIndex[i]].power;
-
     photonPos = map[nearestPhotonsIndex[i]].position;
     projectedPhoton = photonPos - dot(intersection.normal, (photonPos - intersection.position)) * intersection.normal;
 
@@ -436,6 +434,17 @@ vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numN
     if (dist > radius) {
       radius = dist;
     }
+  }
+
+  for (int i = 0; i < numNearest; i++) {
+    photonPos = map[nearestPhotonsIndex[i]].position;
+    projectedPhoton = photonPos - dot(intersection.normal, (photonPos - intersection.position)) * intersection.normal;
+
+    dist = getDist(intersection.position, photonPos);
+
+    float wpc = 1 - (dist / (FILTER_CONSTANT * radius));
+
+    accumPower += map[nearestPhotonsIndex[i]].power * wpc;
   }
 
   vec3 unitPower = accumPower / (float) ((1 - FILTER_CONSTANT * 2/3) * M_PI * pow(radius, 2));
@@ -565,8 +574,8 @@ bool tracePhoton(vec3 power, vec3 start, vec3 direction, int depth, bounce bounc
 
 vec3 getReflectedLight(Intersection& intersection, LightSource& l) {
   vec3 light(0,0,0);
-  light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS, 0.05, photonMap);
-  light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS/2, 0.05, causticMap);
+  light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS, 0.1, photonMap);
+  light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS, 0.1, causticMap);
   return light;
 }
 

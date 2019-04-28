@@ -29,7 +29,7 @@ struct Intersection {
 };
 
 const int PATH_TRACER_BOUNCES = 2;
-const int PATH_TRACER_SAMPLES = 16;
+const int PATH_TRACER_SAMPLES = 32;
 std::default_random_engine generator;
 std::uniform_real_distribution<float> distribution(0, 1);
 
@@ -39,10 +39,9 @@ const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
 const vec4 defaultLightPos(0.0, -0.5, -0.7, 1.0);
 
 vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
-vec4 lightPos(0.0, -0.5, -0.7, 1.0);
-vec3 lightColor = 14.f * vec3( 1, 1, 1 );
-// vec3 indirectLight = 0.5f * vec3( 1, 1, 1 );
-vec3 indirectLight = 0.1f * vec3( 1, 1, 1 );
+vec4 lightPos(0.0, -0.7, -0.7, 1.0);
+vec3 lightColor = 30.f * vec3(1, 1, 1);
+vec3 ambientLight = 0.1f * vec3(1, 1, 1);
 
 std::vector<Triangle> triangles;
 mat4 R;
@@ -65,6 +64,7 @@ void moveCameraUp(int direction);
 void moveCameraForward(int direction);
 void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb);
 vec3 uniformSampleHemisphere(const float &r1, const float &r2);
+void getSampleTransform(vec3 normal, vec3 nX, vec3 nY, mat3 &transform);
 void lookAt(vec3 toPos);
 void resetView();
 
@@ -85,7 +85,6 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-/* Place your drawing here */
 void Draw(screen* screen) {
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
@@ -93,94 +92,66 @@ void Draw(screen* screen) {
   for (int x = 0; x < SCREEN_WIDTH; x++) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
       vec4 d = normalize(R * vec4(x - SCREEN_WIDTH/2, y - SCREEN_HEIGHT/2, focalLength, 1));
-      // Intersection intersection;
-
-      // vec3 directLight(0.0, 0.0, 0.0); // The direct colour
-			// vec3 reflectedLight(0.0, 0.0, 0.0); // The visible colour
-			// vec3 colour(0.0, 0.0, 0.0); // The original colour of the triangle
-
-      // if (ClosestIntersection(cameraPos, d, triangles, intersection)) {
-			// 	directLight = DirectLight(intersection);
-			// 	colour = triangles[intersection.triangleIndex].color;
-
-			// 	reflectedLight = colour * (directLight + indirectLight);
-      // }
 
       vec3 colour = CastRay(cameraPos, d, triangles, 0);
 
-      // PutPixelSDL(screen, x, y, reflectedLight);
       PutPixelSDL(screen, x, y, colour);
     }
   }
 }
 
 vec3 CastRay(vec4 start, vec4 dir, const vector<Triangle>& triangles, int depth) {
-
-  if (depth > PATH_TRACER_BOUNCES) return vec3(0, 0, 0);
+  vec3 black = vec3(0, 0, 0);
+  if (depth > PATH_TRACER_BOUNCES) return black;
 
   Intersection intersection;
+  float pdf = 1 / (2 * M_PI);
 
   if (ClosestIntersection(start, dir, triangles, intersection)) {
-    vec3 directLight(0.0, 0.0, 0.0); // The direct colour
-    vec3 reflectedLight(0.0, 0.0, 0.0); // The visible colour
-    vec3 colour(0.0, 0.0, 0.0); // The original colour of the triangle
-    directLight = DirectLight(intersection);
+    vec3 directLight = DirectLight(intersection);
+    vec3 normal = vec3(triangles[intersection.triangleIndex].normal);
+    vec3 nX, nY;
+    vec3 indirectLight = black;
 
-    vec3 normal = vec3(triangles[intersection.triangleIndex].normal); // * glm::vec4(-1,-1,-1,1));
+    createCoordinateSystem(normal, nX, nY);
 
-    vec3 Nt, Nb;
-
-    createCoordinateSystem(normal, Nt, Nb);
-    float pdf = 1 / (2 * M_PI);
-
-    // number of samples N
-    uint32_t N = PATH_TRACER_SAMPLES;
-    vec3 indirectDiffuse = vec3(0, 0, 0);
-    for (uint32_t i = 0; i < N; i++) {
-      // step 2: create sample in world space
+    for (int i = 0; i < PATH_TRACER_SAMPLES; i++) {
       float r1 = distribution(generator), r2 = distribution(generator);
       vec3 sample = uniformSampleHemisphere(r1, r2);
-
-      // step 3: transform sample from world space to shaded point local coordinate system
-      vec4 sampleWorld = vec4(
-        sample.x * Nb.x + sample.y * normal.x + sample.z * Nt.x,
-        sample.x * Nb.y + sample.y * normal.y + sample.z * Nt.y,
-        sample.x * Nb.z + sample.y * normal.z + sample.z * Nt.z, 1);
-      // step 4 & 5: cast a ray in this direction
-      indirectDiffuse += r1 * CastRay(intersection.position,
-        normalize(sampleWorld), triangles, depth + 1) / pdf;
+      mat3 sampleTransform;
+      getSampleTransform(normal, nX, nY, sampleTransform);
+      vec4 sampleWorldSpace = vec4(sample * sampleTransform, 1);
+      indirectLight += r1 * CastRay(intersection.position, normalize(sampleWorldSpace), triangles, depth + 1) / pdf;
     }
-    // step 7: divide the sum by the total number of samples N
-    indirectDiffuse /= (float) N;
 
-    // std::cout<<glm::to_string(indirectDiffuse) << ", " << depth <<std::endl;
-
-    colour = triangles[intersection.triangleIndex].color;
-    reflectedLight = (directLight / (float) M_PI + 2.0f * indirectDiffuse + indirectLight) * colour;
-    return reflectedLight;
-  } else {
-    return vec3(0, 0, 0);
-  }
+    indirectLight /= (float) PATH_TRACER_SAMPLES;
+    vec3 colour = triangles[intersection.triangleIndex].color;
+    return (directLight / (float) M_PI + 2.0f * indirectLight) * colour;
+  } else return ambientLight;
 }
 
+void getSampleTransform(vec3 normal, vec3 nX, vec3 nY, mat3 &transform) {
+  transform[0][0] = nY.x; transform[0][1] = normal.x; transform[0][2] = nX.x;
+  transform[1][0] = nY.y; transform[1][1] = normal.y; transform[1][2] = nX.y;
+  transform[2][0] = nY.z; transform[2][1] = normal.z; transform[2][2] = nX.z;
+}
+
+/* http://www.scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing/global-illumination-path-tracing-practical-implementation */
 vec3 uniformSampleHemisphere(const float &r1, const float &r2) {
-  // cos(theta) = u1 = y
-  // cos^2(theta) + sin^2(theta) = 1 -> sin(theta) = srtf(1 - cos^2(theta))
-  float sinTheta = sqrtf(1 - r1 * r1);
+  float sinTheta = sqrtf(1 - (r1 * r1));
   float phi = 2 * M_PI * r2;
-  float x = sinTheta * cosf(phi);
-  float z = sinTheta * sinf(phi);
+  float x = sinTheta * cosf(phi), z = sinTheta * sinf(phi);
   return vec3(x, r1, z);
 }
 
 /* http://www.scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing/global-illumination-path-tracing-practical-implementation */
-void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb) {
+void createCoordinateSystem(const vec3 &N, vec3 &nX, vec3 &nY) {
   if (std::fabs(N.x) > std::fabs(N.y)) {
-    Nt = vec3(N.z, 0, -N.x) / sqrtf(N.x * N.x + N.z * N.z);
+    nX = vec3(N.z, 0, -N.x) / sqrtf(N.x * N.x + N.z * N.z);
   } else {
-    Nt = vec3(0, -N.z, N.y) / sqrtf(N.y * N.y + N.z * N.z);
+    nX = vec3(0, -N.z, N.y) / sqrtf(N.y * N.y + N.z * N.z);
   }
-  Nb = cross(N, Nt);
+  nY = cross(N, nX);
 }
 
 bool ClosestIntersection(vec4 start, vec4 dir, const vector<Triangle>& triangles, Intersection& closestIntersection) {

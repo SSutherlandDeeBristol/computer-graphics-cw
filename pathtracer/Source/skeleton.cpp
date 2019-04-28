@@ -28,8 +28,8 @@ struct Intersection {
   int triangleIndex;
 };
 
-const int PATH_TRACER_BOUNCES = 2;
-const int PATH_TRACER_SAMPLES = 32;
+int PATH_TRACER_BOUNCES = 1;
+int PATH_TRACER_SAMPLES = 16;
 std::default_random_engine generator;
 std::uniform_real_distribution<float> distribution(0, 1);
 
@@ -41,7 +41,7 @@ const vec4 defaultLightPos(0.0, -0.5, -0.7, 1.0);
 vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
 vec4 lightPos(0.0, -0.7, -0.7, 1.0);
 vec3 lightColor = 30.f * vec3(1, 1, 1);
-vec3 ambientLight = 0.1f * vec3(1, 1, 1);
+vec3 distantEnvironmentLight = 0.1f * vec3(1, 1, 1);
 
 std::vector<Triangle> triangles;
 mat4 R;
@@ -63,12 +63,24 @@ void moveCameraRight(int direction);
 void moveCameraUp(int direction);
 void moveCameraForward(int direction);
 void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb);
-vec3 uniformSampleHemisphere(const float &r1, const float &r2);
+void uniformSampleHemisphere(const float &r1, const float &r2, vec3 &sample);
 void getSampleTransform(vec3 normal, vec3 nX, vec3 nY, mat3 &transform);
 void lookAt(vec3 toPos);
 void resetView();
 
 int main(int argc, char* argv[]) {
+  if (argc < 3) {
+    cerr << "Usage: " << argv[0] << " PATH_TRACER_BOUNCES PATH_TRACER_SAMPLES" << endl;
+    return 1;
+  } else {
+    try {
+      PATH_TRACER_BOUNCES = stoi(argv[1]);
+      PATH_TRACER_SAMPLES = stoi(argv[2]);
+    } catch (exception const &e) {
+      cerr << "Could not parse arguments." << endl;
+    }
+  }
+
   screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
   resetView();
   LoadTestModel(triangles);
@@ -91,8 +103,10 @@ void Draw(screen* screen) {
 
   for (int x = 0; x < SCREEN_WIDTH; x++) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
+      /* Calculate direction of ray */
       vec4 d = normalize(R * vec4(x - SCREEN_WIDTH/2, y - SCREEN_HEIGHT/2, focalLength, 1));
 
+      /* Cast a bouncing ray in this direction, retrieving the colour*/
       vec3 colour = CastRay(cameraPos, d, triangles, 0);
 
       PutPixelSDL(screen, x, y, colour);
@@ -102,32 +116,46 @@ void Draw(screen* screen) {
 
 vec3 CastRay(vec4 start, vec4 dir, const vector<Triangle>& triangles, int depth) {
   vec3 black = vec3(0, 0, 0);
+  /* Escape from recursion if depth exceeds limit */
   if (depth > PATH_TRACER_BOUNCES) return black;
 
   Intersection intersection;
   float pdf = 1 / (2 * M_PI);
 
+  /* Find the closest intersection of the ray */
   if (ClosestIntersection(start, dir, triangles, intersection)) {
+
+    /* Calculate the direct light at this point */
     vec3 directLight = DirectLight(intersection);
     vec3 normal = vec3(triangles[intersection.triangleIndex].normal);
     vec3 nX, nY;
     vec3 indirectLight = black;
 
+    /* Create a coordinate system at this point, with the y-axis aligning with the normal */
     createCoordinateSystem(normal, nX, nY);
 
     for (int i = 0; i < PATH_TRACER_SAMPLES; i++) {
+      /* Generate two random values between 0 and 1 */
       float r1 = distribution(generator), r2 = distribution(generator);
-      vec3 sample = uniformSampleHemisphere(r1, r2);
-      mat3 sampleTransform;
-      getSampleTransform(normal, nX, nY, sampleTransform);
+
+      /* Create a sample vector from these random values */
+      vec3 sample; uniformSampleHemisphere(r1, r2, sample);
+
+      /* Transform the sample to world space */
+      mat3 sampleTransform; getSampleTransform(normal, nX, nY, sampleTransform);
       vec4 sampleWorldSpace = vec4(sample * sampleTransform, 1);
+
+      /* Fire a recursive ray in this sample direction, weighting the result */
       indirectLight += r1 * CastRay(intersection.position, normalize(sampleWorldSpace), triangles, depth + 1) / pdf;
     }
 
+    /* Average the sum of the samples */
     indirectLight /= (float) PATH_TRACER_SAMPLES;
+
+    /* Compute and return reflected light */
     vec3 colour = triangles[intersection.triangleIndex].color;
     return (directLight / (float) M_PI + 2.0f * indirectLight) * colour;
-  } else return ambientLight;
+  } else return distantEnvironmentLight;
 }
 
 void getSampleTransform(vec3 normal, vec3 nX, vec3 nY, mat3 &transform) {
@@ -137,20 +165,17 @@ void getSampleTransform(vec3 normal, vec3 nX, vec3 nY, mat3 &transform) {
 }
 
 /* http://www.scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing/global-illumination-path-tracing-practical-implementation */
-vec3 uniformSampleHemisphere(const float &r1, const float &r2) {
+void uniformSampleHemisphere(const float &r1, const float &r2, vec3 &sample) {
   float sinTheta = sqrtf(1 - (r1 * r1));
   float phi = 2 * M_PI * r2;
   float x = sinTheta * cosf(phi), z = sinTheta * sinf(phi);
-  return vec3(x, r1, z);
+  sample = vec3(x, r1, z);
 }
 
 /* http://www.scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing/global-illumination-path-tracing-practical-implementation */
 void createCoordinateSystem(const vec3 &N, vec3 &nX, vec3 &nY) {
-  if (std::fabs(N.x) > std::fabs(N.y)) {
-    nX = vec3(N.z, 0, -N.x) / sqrtf(N.x * N.x + N.z * N.z);
-  } else {
-    nX = vec3(0, -N.z, N.y) / sqrtf(N.y * N.y + N.z * N.z);
-  }
+  bool nXB = fabs(N.x) > fabs(N.y);
+  nX = vec3(nXB ? N.z : 0, nXB ? 0 : -N.z, nXB ? -N.x : N.y) / sqrtf((nXB ? N.x * N.x : N.y * N.y) + N.z * N.z);
   nY = cross(N, nX);
 }
 
@@ -282,7 +307,6 @@ void resetView() {
   updateRotation();
 }
 
-/*Place updates of parameters here*/
 bool Update() {
   static int t = SDL_GetTicks();
   /* Compute frame time */

@@ -213,7 +213,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
   float length = 0.25;
   float seperation = 0.03;
   vec3 direction(0, 1, 0);
-  float lightPower = 80;
+  float lightPower = 60;
 
   float offsetX = (width / 2 + seperation);
   float offsetZ = (length / 2 + seperation);
@@ -223,7 +223,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
   lights.push_back( LightSource( lightPower/4, vec3(1, 1, 1), vec3(middleX - offsetX, -1.0, middleZ + offsetZ), direction, width, length) );
   lights.push_back( LightSource( lightPower/4, vec3(1, 1, 1), vec3(middleX - offsetX, -1.0, middleZ - offsetZ), direction, width, length) );
 
-	spheres.push_back( Sphere(vec3(0.5,0.7,-0.3), 0.2, white, glass) );
+	spheres.push_back( Sphere(vec3(0.5,0.75,-0.3), 0.2, white, glass) );
 
 	// Floor:
 	triangles.push_back( Triangle( C, B, A, white, matteWhite ) );

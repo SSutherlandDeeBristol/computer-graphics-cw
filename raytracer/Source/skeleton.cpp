@@ -23,13 +23,13 @@ SDL_Event event;
 #define FULLSCREEN_MODE false
 
 #define MAX_PHOTON_DEPTH 20
-#define FILTER_CONSTANT 1.05
+#define FILTER_CONSTANT 1
 
 // Must be square number
 #define NUM_SHADOW_RAYS 36
 
 #define GLOBAL_REF_INDEX 1
-#define SPOTLIGHT_CUTOFF M_PI/4
+#define SPOTLIGHT_CUTOFF M_PI/2
 
 enum geometry {triangle, sphere};
 enum bounce {diffuse, specular, none};
@@ -98,8 +98,8 @@ vec3 getDirectLight(const Intersection& i, const LightSource& l);
 vec3 sampleLightSource(const LightSource& l);
 void sampleSquareLightSource(const LightSource& l, vector<vec3>& points);
 
-vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, vector<Photon>& map);
-void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<int>& indices);
+void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector<Photon>& map);
+vec3 getNearestPhotonsPower(Intersection& intersection, float maxRadius, vector<Photon>& map);
 
 vec3 reflect(vec3 dir, vec3 normal);
 vec3 refract(vec3 dir, vec3 normal, Material material);
@@ -247,8 +247,8 @@ vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
       directLight += getDirectLight(intersection, lights[i]);
     }
 
-    causticLight += getNearestPhotonsPower(intersection, NUM_NEAREST_PHOTONS, causticMap);
-    diffuseLight += getNearestPhotonsPower(intersection, NUM_NEAREST_PHOTONS, photonMap);
+    causticLight += getNearestPhotonsPower(intersection, 0.1, causticMap);
+    diffuseLight += getNearestPhotonsPower(intersection, 0.1, photonMap);
   }
 
   colour = causticLight + directLight + diffuseLight + emmittedLight;
@@ -321,48 +321,45 @@ void sampleSquareLightSource(const LightSource& l, vector<vec3>& points) {
   }
 }
 
-void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<int>& indices, vector<Photon>& map) {
+void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector<Photon>& map) {
   vector<float> distances;
 
-  indices.reserve(numNearest);
   indices.clear();
 
   for (int i = 0; i < map.size(); i++) {
     vec3 ipos = intersection.position;
-    vec3 ppos = photonMap[i].position;
+      vec3 ppos = map[i].position;
 
-    float dist = distance(ipos, ppos);
+      float dist = distance(ipos, ppos);
 
-    if (indices.size() < numNearest) {
-      indices.push_back(i);
-      distances.push_back(dist);
-    } else {
-      int furthestIndex = 0;
-      float maxDist = -numeric_limits<float>::max();
+      if (indices.size() < NUM_NEAREST_PHOTONS) {
+        indices.push_back(i);
+        distances.push_back(dist);
+      } else {
+        int furthestIndex = 0;
+        float maxDist = -numeric_limits<float>::max();
 
-      for (int j = 0; j < numNearest; j++) {
-        if (distances[j] > maxDist) {
-          maxDist = distances[j];
-          furthestIndex = j;
+        for (int j = 0; j < NUM_NEAREST_PHOTONS; j++) {
+          if (distances[j] > maxDist) {
+            maxDist = distances[j];
+            furthestIndex = j;
+          }
+        }
+
+        if (dist < maxDist) {
+          indices[furthestIndex] = i;
+          distances[furthestIndex] = dist;
         }
       }
-
-      if (dist < maxDist) {
-        indices[furthestIndex] = i;
-        distances[furthestIndex] = dist;
-      }
-    }
   }
 }
 
-vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, vector<Photon>& map) {
+vec3 getNearestPhotonsPower(Intersection& intersection, float maxRadius, vector<Photon>& map) {
   vector<int> nearestPhotonsIndex;
   vec3 accumPower = vec3(0.0f,0.0f,0.0f);
   float radius = 0.0f;
 
-  if (map.size() < numNearest) return vec3(0,0,0);
-
-  getNearestPhotonsIndex(intersection, numNearest, nearestPhotonsIndex, map);
+  getNNearestPhotons(intersection, nearestPhotonsIndex, map);
 
   float dist = 0.0f;
   vec3 photonPos(1.0,1.0,1.0);
@@ -370,7 +367,7 @@ vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, vector<P
 
   for (size_t i = 0; i < nearestPhotonsIndex.size(); i++) {
     photonPos = map[nearestPhotonsIndex[i]].position;
-    projectedPos = photonPos - dot(photonPos - intersection.position, intersection.normal) * intersection.normal;
+    //projectedPos = photonPos - dot(photonPos - intersection.position, intersection.normal) * intersection.normal;
 
     dist = distance(intersection.position, photonPos);
 
@@ -381,16 +378,16 @@ vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, vector<P
 
   for (size_t i = 0; i < nearestPhotonsIndex.size(); i++) {
     photonPos = map[nearestPhotonsIndex[i]].position;
-    projectedPos = photonPos - dot(photonPos - intersection.position, intersection.normal) * intersection.normal;
+    //projectedPos = photonPos - dot(photonPos - intersection.position, intersection.normal) * intersection.normal;
 
     dist = distance(intersection.position, photonPos);
 
     float wpc = 1.0f - (dist / (FILTER_CONSTANT * radius));
 
-    accumPower += (map[nearestPhotonsIndex[i]].power * wpc) / (float) ((1.0f - FILTER_CONSTANT * (float) 2/3) * (float) M_PI * pow(radius, 2.0f));
+    accumPower += (map[nearestPhotonsIndex[i]].power * wpc);
   }
 
-  vec3 unitPower = accumPower;
+  vec3 unitPower = accumPower / (float) ((1.0f - FILTER_CONSTANT * (float) 2/3) * (float) M_PI * pow(radius, 2.0f));
 
   return unitPower;
 }
@@ -529,7 +526,7 @@ vec3 getDirectLight(const Intersection& i, const LightSource& l) {
 
   vec3 B = l.color * l.watts / A;
   vec3 D = B * ((dot(rHat, normalize(-l.direction)) > cos((float) SPOTLIGHT_CUTOFF))
-                ? (min(0.5f, max(dot(rHat,normalize(-l.direction)), 0.0f)) * max(0.0f, dot(nHat, rHat))) : 0.0f);
+                ? (min(0.5f, max(dot(rHat,normalize(-l.direction)), 0.0f))) : 0.0f);
 
   vec3 C = D * color;
 
@@ -558,7 +555,7 @@ vec3 getDirectLight(const Intersection& i, const LightSource& l) {
 
         B = l.color * l.watts / A;
         D = B * ((dot(rHat, normalize(-l.direction)) > cos((float) SPOTLIGHT_CUTOFF))
-                      ? (min(0.5f, max(dot(rHat,normalize(-l.direction)), 0.0f)) * max(0.0f, dot(nHat, rHat))) : 0.0f);
+                      ? (min(0.5f, max(dot(rHat,normalize(-l.direction)), 0.0f))) : 0.0f);
         C = D * color;
 
         directLight += C;
@@ -802,15 +799,15 @@ Material getMaterial(Intersection& intersection) {
 void drawPhotons(screen* screen) {
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
-  // for (int i = 0; i < photonMap.size(); i++) {
-  //   Photon p = photonMap[i];
-  //
-  //   vec4 pos = R * vec4(p.position,1) - cameraPos;
-  //
-  //   int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
-  //   int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-  //   if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power * 100.0f);
-  // }
+  for (int i = 0; i < photonMap.size(); i++) {
+    Photon p = photonMap[i];
+
+    vec4 pos = R * vec4(p.position,1) - cameraPos;
+
+    int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
+    int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
+    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power * 1000.0f);
+  }
 
   for (int i = 0; i < causticMap.size(); i++) {
     Photon p = causticMap[i];
@@ -819,7 +816,7 @@ void drawPhotons(screen* screen) {
 
     int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
     int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power * 100.0f);
+    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power * 1000.0f);
   }
 
   // for (int i = 0; i < lights.size(); i++) {

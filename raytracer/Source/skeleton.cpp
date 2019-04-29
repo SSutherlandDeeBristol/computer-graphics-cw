@@ -23,13 +23,13 @@ SDL_Event event;
 #define FULLSCREEN_MODE false
 
 #define MAX_PHOTON_DEPTH 20
-#define FILTER_CONSTANT 1
+#define FILTER_CONSTANT 1.05
 
 // Must be square number
-#define NUM_SHADOW_RAYS 25
+#define NUM_SHADOW_RAYS 36
 
 #define GLOBAL_REF_INDEX 1
-#define SPOTLIGHT_CUTOFF M_PI/8
+#define SPOTLIGHT_CUTOFF M_PI/4
 
 enum geometry {triangle, sphere};
 enum bounce {diffuse, specular, none};
@@ -53,9 +53,9 @@ bool PHOTON_MAPPER = false;
 int NUM_PHOTONS = 5000;
 int NUM_NEAREST_PHOTONS = 200;
 
-const float focalLength = SCREEN_HEIGHT;
-const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
-vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
+const float focalLength = SCREEN_HEIGHT * 3/2;
+const vec4 defaultCameraPos(0.0, 0.0, -4.0, 1.0);
+vec4 cameraPos(0.0, 0.0, -4.0, 1.0);
 
 const vec4 defaultLightPos( 0, -0.5, -0.7, 1.0 );
 vec4 lightPos( 0, -0.5, -0.7, 1.0 );
@@ -92,15 +92,13 @@ void drawPhotons(screen* screen);
 vec3 getPhongPixelValue(vec3 direction);
 vec3 getPixelValue(vec3 start, vec3 direction, int depth);
 
-vec3 getReflectedLight(Intersection& intersection, LightSource& l);
 vec3 phongComputeLight(const Intersection &i, const PhongLightSource &l);
 vec3 getDirectLight(const Intersection& i, const LightSource& l);
 
 vec3 sampleLightSource(const LightSource& l);
 void sampleSquareLightSource(const LightSource& l, vector<vec3>& points);
 
-vec3 getClosestPhotonPower(Intersection& intersection, LightSource& l);
-vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, float maxRadius);
+vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, vector<Photon>& map);
 void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<int>& indices);
 
 vec3 reflect(vec3 dir, vec3 normal);
@@ -152,6 +150,8 @@ int main(int argc, char* argv[]) {
   } else {
     LoadTestModelPhong(phongTriangles, phongSpheres, phongLights);
   }
+
+  cameraPos = defaultCameraPos;
 
   while (Update()) {
     Draw(mainscreen);
@@ -220,13 +220,14 @@ vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
 
   vec3 colour(0.0,0.0,0.0);
   vec3 emmittedLight(0.0,0.0,0.0);
-  vec3 reflectedLight(0.0,0.0,0.0);
+  vec3 diffuseLight(0.0,0.0,0.0);
+  vec3 causticLight(0.0,0.0,0.0);
   vec3 directLight(0.0,0.0,0.0);
 
   Intersection lightIntersection;
   Intersection intersection;
 
-  for (int i = 0; i < lights.size(); i++) {
+  for (size_t i = 0; i < lights.size(); i++) {
     LightSource l = lights[i];
 
     if (intersectSquare(lightIntersection, start, direction, l.position, l.direction, l.width, l.length)) {
@@ -237,129 +238,63 @@ vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
   if (closestIntersection(start, direction, intersection)) {
     Material material = getMaterial(intersection);
 
-    if (material.refractiveIndex != 0.0f) {
+    if (material.refractiveIndex > 0.0f) {
       vec3 refractDir = refract(direction, intersection.normal, material);
-      return getPixelValue(intersection.position + refractDir * shadowBiasThreshold, refractDir, depth + 1);
+      return getPixelValue(intersection.position, refractDir, depth + 1);
     }
 
-    for (int i = 0; i < lights.size(); i++) {
-      reflectedLight += getReflectedLight(intersection, lights[i]);
+    for (size_t i = 0; i < lights.size(); i++) {
       directLight += getDirectLight(intersection, lights[i]);
     }
+
+    causticLight += getNearestPhotonsPower(intersection, NUM_NEAREST_PHOTONS, causticMap);
+    diffuseLight += getNearestPhotonsPower(intersection, NUM_NEAREST_PHOTONS, photonMap);
   }
 
-  colour = directLight + reflectedLight + emmittedLight;
+  colour = causticLight + directLight + diffuseLight + emmittedLight;
 
-  return colour;
-}
-
-void drawPhotons(screen* screen) {
-  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
-
-  for (int i = 0; i < photonMap.size(); i++) {
-    Photon p = photonMap[i];
-
-    vec4 pos = R * vec4(p.position,1) - cameraPos;
-
-    int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
-    int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power * 100.0f);
-  }
-
-  for (int i = 0; i < causticMap.size(); i++) {
-    Photon p = causticMap[i];
-
-    vec4 pos = R * vec4(p.position,1) - cameraPos;
-
-    int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
-    int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power * 100.0f);
-  }
-
-  for (int i = 0; i < lights.size(); i++) {
-    // vector<vec3> lightPoints;
-    //
-    // sampleSquareLightSource(lights[i], lightPoints);
-    //
-    // for (int j = 0; j < lightPoints.size(); j++) {
-    //   vec4 position(lightPoints[j], 1);
-    //   vec4 pos = R * position - cameraPos;
-    //
-    //   int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
-    //   int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-    //   if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, lights[i].color);
-    // }
-
-    float width = lights[i].width;
-    float length = lights[i].length;
-
-    for (float j = -width/2; j <= width/2; j += width/100) {
-      for (float k = -length/2; k <= length/2; k += length/100) {
-        vec4 pixelPos(lights[i].position.x + j, lights[i].position.y, lights[i].position.z + k, 1);
-        vec4 pos = R * pixelPos - cameraPos;
-
-        int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
-        int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-        if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, lights[i].color);
-      }
-    }
-  }
-
-}
-
-vec3 getClosestPhotonPower(Intersection& intersection) {
-  float dist = numeric_limits<float>::max();
-  vec3 accumPower;
-
-  if (photonMap.size() == 0) return vec3(0,0,0);
-
-  for (int i = 0; i < photonMap.size(); i++) {
-    vec3 it = intersection.position;
-    vec3 phop = photonMap[i].position;
-
-    float distVec = distance(it, phop);
-
-    if (distVec < dist) {
-      accumPower = photonMap[i].power;
-      dist = distVec;
-    }
-  }
-
-  return accumPower;
+  return colour * (1.0f - max(0.0f, dot(normalize(intersection.normal), normalize(intersection.direction))));
 }
 
 vec3 reflect(vec3 dir, vec3 normal) {
-  return normalize(dir - 2 * dot(dir, normal) * normal);
+  dir = normalize(dir);
+  normal = normalize(normal);
+
+  return normalize(dir - 2.0f * dot(dir, normal) * normal);
 }
 
-vec3 refract(vec3 dir, vec3 norm, Material material) {
-  float n1 = 1.0;
+vec3 refract(vec3 dir, vec3 normal, Material material) {
+  dir = normalize(dir);
+  normal = normalize(normal);
+
+  float n1 = (float) GLOBAL_REF_INDEX;
   float n2 = material.refractiveIndex;
 
-  vec3 normal = norm;
+  float c1 = dot(normal, dir);
 
-  float c1 = glm::clamp(dot(normalize(normal), normalize(dir)), -1.0f, 1.0f);
-
-  if (c1 < 0) {
-    c1 = -c1;
-  } else {
-    std::swap(n1, n2);
+  if (c1 > 0.0f) {
+    // inside the material
+    n1 = material.refractiveIndex;
+    n2 = (float) GLOBAL_REF_INDEX;
     normal = -normal;
+  } else {
+    // outside the material
+    c1 = -c1;
   }
 
-  float n = n1 / n2;
+  float n = (float) n1 / n2;
+  //float s = 1.0f - (float) (n * n * (1.0f - c1 * c1));
+  float s = 1.0f - pow(n, 2.0f) * (1.0f - pow(c1, 2.0f));
 
-  float s = 1 - (n * n * (1 - c1 * c1));
-
-  if (s < 0) {
+  if (s < 0.0f) {
     return reflect(dir, normal);
   } else {
-    return normalize(n * dir + (n * c1 - sqrtf(s)) * normal);
+    return normalize(n * dir + (n * c1 - (float) sqrtf(s)) * normal);
   }
 }
 
 vec3 sampleLightSource(const LightSource& l) {
-  vec3 position(1,1,1);
+  vec3 position(1.0f,1.0f,1.0f);
 
   position.x = ((float) rand() / (RAND_MAX)) * l.width + (l.position.x - l.width/2);
   position.y = l.position.y + shadowBiasThreshold;
@@ -375,9 +310,11 @@ void sampleSquareLightSource(const LightSource& l, vector<vec3>& points) {
 
   for (int i = 0; i < gridWidth; i++) {
     for (int j = 0; j < gridWidth; j++) {
-      float x = (l.position.x - l.width/2 + (l.width/gridWidth)/2) + (i * (l.width/gridWidth));
+      float x = (l.position.x - l.width/2 + (l.width/gridWidth)/2) + (i * (l.width/gridWidth))
+                + (((float) rand() / (RAND_MAX)) * l.width/(gridWidth * 4) - l.width/(gridWidth * 8));
       float y = l.position.y + 0.01f;
-      float z = (l.position.z - l.length/2 + (l.length/gridWidth)/2) + (j * (l.length/gridWidth));
+      float z = (l.position.z - l.length/2 + (l.length/gridWidth)/2) + (j * (l.length/gridWidth))
+                + (((float) rand() / (RAND_MAX)) * l.length/(gridWidth * 4) - l.length/(gridWidth * 8));
 
       points.push_back(vec3(x,y,z));
     }
@@ -418,21 +355,22 @@ void getNearestPhotonsIndex(Intersection& intersection, int numNearest, vector<i
   }
 }
 
-vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numNearest, float maxRadius, vector<Photon>& map) {
+vec3 getNearestPhotonsPower(Intersection& intersection, int numNearest, vector<Photon>& map) {
   vector<int> nearestPhotonsIndex;
-  vec3 accumPower = vec3(0,0,0);
-  float radius = -1;
+  vec3 accumPower = vec3(0.0f,0.0f,0.0f);
+  float radius = 0.0f;
 
   if (map.size() < numNearest) return vec3(0,0,0);
 
   getNearestPhotonsIndex(intersection, numNearest, nearestPhotonsIndex, map);
 
-  float dist = 0;
-  vec3 projectedPhoton(1,1,1);
-  vec3 photonPos(1,1,1);
+  float dist = 0.0f;
+  vec3 photonPos(1.0,1.0,1.0);
+  vec3 projectedPos(1.0,1.0,1.0);
 
-  for (int i = 0; i < numNearest; i++) {
+  for (size_t i = 0; i < nearestPhotonsIndex.size(); i++) {
     photonPos = map[nearestPhotonsIndex[i]].position;
+    projectedPos = photonPos - dot(photonPos - intersection.position, intersection.normal) * intersection.normal;
 
     dist = distance(intersection.position, photonPos);
 
@@ -441,17 +379,18 @@ vec3 getNearestPhotonsPower(Intersection& intersection, LightSource& l, int numN
     }
   }
 
-  for (int i = 0; i < numNearest; i++) {
+  for (size_t i = 0; i < nearestPhotonsIndex.size(); i++) {
     photonPos = map[nearestPhotonsIndex[i]].position;
+    projectedPos = photonPos - dot(photonPos - intersection.position, intersection.normal) * intersection.normal;
 
     dist = distance(intersection.position, photonPos);
 
-    float wpc = 1 - (dist / (FILTER_CONSTANT * radius));
+    float wpc = 1.0f - (dist / (FILTER_CONSTANT * radius));
 
-    accumPower += map[nearestPhotonsIndex[i]].power * wpc;
+    accumPower += (map[nearestPhotonsIndex[i]].power * wpc) / (float) ((1.0f - FILTER_CONSTANT * (float) 2/3) * (float) M_PI * pow(radius, 2.0f));
   }
 
-  vec3 unitPower = accumPower / (float) ((1 - FILTER_CONSTANT * 2/3) * M_PI * pow(radius, 2));
+  vec3 unitPower = accumPower;
 
   return unitPower;
 }
@@ -485,7 +424,7 @@ void emitPhotonsFromLight(LightSource &l, int NUM_PHOTONS) {
     vec3 direction3d(direction.x, direction.y, direction.z);
     vec3 lightDirection3d(l.direction.x, l.direction.y, l.direction.z);
 
-    while (dot(normalize(direction3d), normalize(lightDirection3d)) < cos(SPOTLIGHT_CUTOFF)) {
+    while (dot(normalize(direction3d), normalize(lightDirection3d)) < cos((float) SPOTLIGHT_CUTOFF)) {
       direction3d.x = ((float) rand() / (RAND_MAX)) * 2 - 1;
       direction3d.y = ((float) rand() / (RAND_MAX)) * 2 - 1;
       direction3d.z = ((float) rand() / (RAND_MAX)) * 2 - 1;
@@ -556,18 +495,11 @@ bool tracePhoton(vec3 power, vec3 start, vec3 direction, int depth, bounce bounc
       // transmit photon
       vec3 refractDir = refract(direction, normal, material);
 
-      tracePhoton(power, intersection.position + refractDir * shadowBiasThreshold, refractDir, depth + 1, specular);
+      tracePhoton(power, intersection.position, refractDir, depth + 1, specular);
     }
   }
 
   return false;
-}
-
-vec3 getReflectedLight(Intersection& intersection, LightSource& l) {
-  vec3 light(0,0,0);
-  light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS, 0.1, photonMap);
-  light += getNearestPhotonsPower(intersection, l, NUM_NEAREST_PHOTONS, 0.1, causticMap);
-  return light;
 }
 
 vec3 getDirectLight(const Intersection& i, const LightSource& l) {
@@ -593,11 +525,15 @@ vec3 getDirectLight(const Intersection& i, const LightSource& l) {
 
   float r = distance(i.position, l.position);
 
-  float A = 4 * M_PI * pow(r, 2);
+  float A = 4 * (float) M_PI * pow(r, 2);
 
   vec3 B = l.color * l.watts / A;
-  vec3 D = B * max(dot(rHat,normalize(-l.direction)), 0.0f);// * max(dot(rHat,nHat), 0.0f);
+  vec3 D = B * ((dot(rHat, normalize(-l.direction)) > cos((float) SPOTLIGHT_CUTOFF))
+                ? (min(0.5f, max(dot(rHat,normalize(-l.direction)), 0.0f)) * max(0.0f, dot(nHat, rHat))) : 0.0f);
+
   vec3 C = D * color;
+
+  directLight += C;
 
   // Soft Shadows
   vector<vec3> lightPoints;
@@ -615,12 +551,22 @@ vec3 getDirectLight(const Intersection& i, const LightSource& l) {
     Intersection intersection;
 
     if (closestIntersection(i.position, rHat, intersection)) {
-      if (intersection.distance < r)
+      if (intersection.distance < r) {
         hitsLight--;
+      } else {
+        A = 4 * (float) M_PI * pow(r, 2);
+
+        B = l.color * l.watts / A;
+        D = B * ((dot(rHat, normalize(-l.direction)) > cos((float) SPOTLIGHT_CUTOFF))
+                      ? (min(0.5f, max(dot(rHat,normalize(-l.direction)), 0.0f)) * max(0.0f, dot(nHat, rHat))) : 0.0f);
+        C = D * color;
+
+        directLight += C;
+      }
     }
   }
 
-	return ((float)hitsLight / lightPoints.size()) * C;
+	return ((float) hitsLight / lightPoints.size()) * (directLight / (float) (hitsLight + 1));
 }
 
 vec3 phongComputeLight( const Intersection &i, const PhongLightSource &l ) {
@@ -766,34 +712,26 @@ bool intersectSphere(Intersection& closestIntersection, vec3 start, vec3 dir, ve
   bool intersectionFound = false;
 
   vec3 oc = start - ce;
-  float b = dot(oc, dir);
-  float c = dot(oc, oc) - ra*ra;
-  float h = b*b - c;
+  float a = dot(dir, dir);
+  float b = 2.0f * dot(oc, dir);
+  float c = dot(oc,oc) - ra*ra;
+  float discriminant = b*b - 4*a*c;
 
-  if(h < 0.0) {
-    // no intersection
+  if (discriminant < 0) {
     return false;
-  }
+  } else {
+    float t = (-b - sqrt(discriminant)) / (2.0*a);
+    vec3 position = start + t * dir;
+    float dist = distance(start, position);
 
-  h = sqrt( h );
-
-  // -b - h or -b + h
-  for(int sign = -1; sign <= 1; sign += 2) {
-    // To prevent doing the same sum twice
-    if (!(sign == 1 && h == 0)) {
-      float t = -b + sign * h;
-      vec3 position = start + t * dir;
-      float dist = distance(start, position);
-
-      if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
-        intersectionFound = true;
-        closestIntersection.distance = dist;
-        closestIntersection.position = position;
-        closestIntersection.normal = normalize(position - ce);
-        closestIntersection.index = index;
-        closestIntersection.intersectionType = sphere;
-        closestIntersection.direction = dir;
-      }
+    if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
+      intersectionFound = true;
+      closestIntersection.distance = dist;
+      closestIntersection.position = position;
+      closestIntersection.normal = normalize(position - ce);
+      closestIntersection.index = index;
+      closestIntersection.intersectionType = sphere;
+      closestIntersection.direction = dir;
     }
   }
 
@@ -860,6 +798,48 @@ Material getMaterial(Intersection& intersection) {
     return spheres[intersection.index].material;
   }
 }
+
+void drawPhotons(screen* screen) {
+  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+
+  // for (int i = 0; i < photonMap.size(); i++) {
+  //   Photon p = photonMap[i];
+  //
+  //   vec4 pos = R * vec4(p.position,1) - cameraPos;
+  //
+  //   int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
+  //   int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
+  //   if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power * 100.0f);
+  // }
+
+  for (int i = 0; i < causticMap.size(); i++) {
+    Photon p = causticMap[i];
+
+    vec4 pos = R * vec4(p.position,1) - cameraPos;
+
+    int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
+    int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
+    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power * 100.0f);
+  }
+
+  // for (int i = 0; i < lights.size(); i++) {
+  //   float width = lights[i].width;
+  //   float length = lights[i].length;
+  //
+  //   for (float j = -width/2; j <= width/2; j += width/100) {
+  //     for (float k = -length/2; k <= length/2; k += length/100) {
+  //       vec4 pixelPos(lights[i].position.x + j, lights[i].position.y, lights[i].position.z + k, 1);
+  //       vec4 pos = R * pixelPos - cameraPos;
+  //
+  //       int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
+  //       int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
+  //       if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, lights[i].color);
+  //     }
+  //   }
+  // }
+
+}
+
 
 void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 	R[0][0] = cos(thetaY) * cos(thetaZ);
@@ -956,19 +936,19 @@ bool Update() {
 	    int key_code = e.key.keysym.sym;
 	    switch(key_code) {
 	      case SDLK_UP:
-					pitch += M_PI / 18;
+					pitch += (float) M_PI / 18;
 					updateRotation();
 					break;
 	      case SDLK_DOWN:
-					pitch -= M_PI / 18;
+					pitch -= (float) M_PI / 18;
 					updateRotation();
           break;
 	      case SDLK_LEFT:
-					yaw -= M_PI / 18;
+					yaw -= (float) M_PI / 18;
 					updateRotation();
           break;
 	      case SDLK_RIGHT:
-					yaw += M_PI / 18;
+					yaw += (float) M_PI / 18;
 					updateRotation();
           break;
 				case SDLK_r:

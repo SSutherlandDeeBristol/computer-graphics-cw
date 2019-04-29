@@ -168,10 +168,10 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	vec3 purple( 0.75f, 0.15f, 0.75f );
 	vec3 white(  0.75f, 0.75f, 0.75f );
 
-	float matteDiffuseRef = 0.2f;
+	float matteDiffuseRef = 0.05f;
 
 	// Define materials
-	Material matteWhite( white * 0.05f, vec3(0,0,0), 0.0f);
+	Material matteWhite( white * matteDiffuseRef, vec3(0,0,0), 0.0f);
 	Material matteRed( red * matteDiffuseRef, vec3(0,0,0), 0.0f);
 	Material matteBlue( blue * matteDiffuseRef, vec3(0,0,0), 0.0f);
 	Material matteGreen( green * matteDiffuseRef, vec3(0,0,0), 0.0f);
@@ -212,28 +212,30 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
   float width = 0.25;
   float length = 0.25;
   float seperation = 0.03;
+  vec3 direction(0, 1, 0);
+  float lightPower = 80;
 
   float offsetX = (width / 2 + seperation);
   float offsetZ = (length / 2 + seperation);
 
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec3(middleX + offsetX, -1.0, middleZ + offsetZ), vec3(0, 1, 0), width, length) );
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec3(middleX + offsetX, -1.0, middleZ - offsetZ), vec3(0, 1, 0), width, length) );
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec3(middleX - offsetX, -1.0, middleZ + offsetZ), vec3(0, 1, 0), width, length) );
-  lights.push_back( LightSource( 10, vec3(1, 1, 1), vec3(middleX - offsetX, -1.0, middleZ - offsetZ), vec3(0, 1, 0), width, length) );
+  lights.push_back( LightSource( lightPower/4, vec3(1, 1, 1), vec3(middleX + offsetX, -1.0, middleZ + offsetZ), direction, width, length) );
+  lights.push_back( LightSource( lightPower/4, vec3(1, 1, 1), vec3(middleX + offsetX, -1.0, middleZ - offsetZ), direction, width, length) );
+  lights.push_back( LightSource( lightPower/4, vec3(1, 1, 1), vec3(middleX - offsetX, -1.0, middleZ + offsetZ), direction, width, length) );
+  lights.push_back( LightSource( lightPower/4, vec3(1, 1, 1), vec3(middleX - offsetX, -1.0, middleZ - offsetZ), direction, width, length) );
 
-	spheres.push_back( Sphere(vec3(0.3,0.7,0.0), 0.2, white, glass) );
+	spheres.push_back( Sphere(vec3(0.5,0.7,-0.3), 0.2, white, glass) );
 
 	// Floor:
 	triangles.push_back( Triangle( C, B, A, white, matteWhite ) );
 	triangles.push_back( Triangle( C, D, B, white, matteWhite ) );
 
 	// Left wall
-	triangles.push_back( Triangle( A, E, C, red, matteRed ) );
-	triangles.push_back( Triangle( C, E, G, red, matteRed ) );
+	triangles.push_back( Triangle( A, E, C, green, matteGreen ) );
+	triangles.push_back( Triangle( C, E, G, green, matteGreen ) );
 
 	// Right wall
-	triangles.push_back( Triangle( F, B, D, blue, matteBlue ) );
-	triangles.push_back( Triangle( H, F, D, blue, matteBlue ) );
+	triangles.push_back( Triangle( F, B, D, red, matteRed ) );
+	triangles.push_back( Triangle( H, F, D, red, matteRed ) );
 
 	// Ceiling
 	triangles.push_back( Triangle( E, F, G, white, matteWhite ) );

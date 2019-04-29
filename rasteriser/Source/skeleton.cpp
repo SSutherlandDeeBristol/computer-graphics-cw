@@ -27,8 +27,8 @@ using glm::mat4;
 SDL_Event event;
 vector<Triangle> triangles;
 
-const float focalLength = SCREEN_HEIGHT;
-const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
+const float focalLength = SCREEN_HEIGHT * 3/2;
+const vec4 defaultCameraPos(0.0, 0.0, -4.0, 1.0);
 const vec4 defaultLightPos(0, -0.6, -0.2, 1);
 const vec3 defaultReflectance(1.2, 1.2, 1.2);
 
@@ -99,7 +99,7 @@ void MoveCameraRight(int direction, float distance);
 void MoveCameraUp(int direction, float distance);
 void MoveCameraForward(int direction, float distance);
 void LookAt(vec3 toPos);
-void ResetCameraPosition();
+void ResetView();
 /* FUNCTIONS END                                                               */
 /* ----------------------------------------------------------------------------*/
 
@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
   LoadTestModel(triangles);
   // LoadTestTriangle(triangles);
 
-  lightPos = defaultLightPos;
+  ResetView();
 
   while (Update()) {
     Draw(mainScreen);
@@ -569,12 +569,11 @@ void LookAt(vec3 toPos) {
 
   pitch = asin(-forward.y);
   yaw = atan2(forward.x, forward.z);
-
-  UpdateRotationMatrix(pitch, yaw, 0, rotationMat);
 }
 
-void ResetCameraPosition() {
+void ResetView() {
   cameraPos = defaultCameraPos;
+  lightPos = defaultLightPos;
   pitch = 0;
   yaw = 0;
 }
@@ -601,7 +600,7 @@ bool Update() {
       case SDLK_LEFT:   yaw -= M_PI / 18; break;
       case SDLK_RIGHT:  yaw += M_PI / 18; break;
       case SDLK_r:      LookAt(vec3(0, 0, 0)); break;
-      case SDLK_t:      ResetCameraPosition(); break;
+      case SDLK_t:      ResetView(); break;
       case SDLK_w:      MoveCameraUp(-1, 0.25); break;
       case SDLK_s:      MoveCameraUp(1, 0.25); break;
       case SDLK_a:      MoveCameraRight(-1, 0.25); break;

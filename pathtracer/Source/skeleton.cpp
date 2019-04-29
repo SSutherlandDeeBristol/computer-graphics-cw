@@ -33,16 +33,16 @@ int PATH_TRACER_SAMPLES = 16;
 std::default_random_engine generator;
 std::uniform_real_distribution<float> distribution(0, 1);
 
-const float focalLength = SCREEN_HEIGHT;
+const float focalLength = SCREEN_HEIGHT * 3/2;
 const float shadowBiasThreshold = 0.001f;
 const float bounceBiasThreshold = 0.01f;
-const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
-const vec4 defaultLightPos(0.0, -0.5, -0.7, 1.0);
+const vec4 defaultCameraPos(0.0, 0.0, -4.0, 1.0);
+const vec4 defaultLightPos(0.0, -0.5, -0.25, 1.0);
 
 vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
-vec4 lightPos(0.0, -0.7, -0.7, 1.0);
-vec3 lightColor = 30.f * vec3(1, 1, 1);
-vec3 distantEnvironmentLight = 0.1f * vec3(1, 1, 1);
+vec4 lightPos(0.0, -0.5, -0.25, 1.0);
+vec3 lightColor = 60.f * vec3(1, 1, 1);
+vec3 distantEnvironmentLight = 0.3f * vec3(1, 1, 1);
 
 std::vector<Triangle> triangles;
 mat4 R;
@@ -67,6 +67,7 @@ void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb);
 void uniformSampleHemisphere(const float &r1, const float &r2, vec3 &sample);
 void getSampleTransform(vec3 normal, vec3 nX, vec3 nY, mat3 &transform);
 void lookAt(vec3 toPos);
+void reflect(vec3 dir, vec3 normal, vec3& reflectionDir);
 void resetView();
 
 int main(int argc, char* argv[]) {
@@ -122,13 +123,16 @@ vec3 CastRay(vec4 start, vec4 dir, const vector<Triangle>& triangles, int depth)
 
   Intersection intersection;
   float pdf = 1 / (2 * M_PI);
+  vec3 reflectedLight = black;
 
   /* Find the closest intersection of the ray */
   if (ClosestIntersection(start, dir, triangles, intersection)) {
 
     /* Calculate the direct light at this point */
+    Triangle intersectedTriangle = triangles[intersection.triangleIndex];
+    int firedRays = 0;
     vec3 directLight = DirectLight(intersection);
-    vec3 normal = vec3(triangles[intersection.triangleIndex].normal);
+    vec3 normal = vec3(intersectedTriangle.normal);
     vec3 nX, nY;
     vec3 indirectLight = black;
 
@@ -136,6 +140,11 @@ vec3 CastRay(vec4 start, vec4 dir, const vector<Triangle>& triangles, int depth)
     createCoordinateSystem(normal, nX, nY);
 
     for (int i = 0; i < PATH_TRACER_SAMPLES; i++) {
+      if (intersectedTriangle.mirror) {
+        vec3 reflectedDir; reflect(vec3(dir), normal, reflectedDir);
+        indirectLight += CastRay(intersection.position - (dir * bounceBiasThreshold), normalize(vec4(reflectedDir, 1)), triangles, depth + 1) / pdf;
+        firedRays++;
+      }
       /* Generate two random values between 0 and 1 */
       float r1 = distribution(generator), r2 = distribution(generator);
 
@@ -148,15 +157,22 @@ vec3 CastRay(vec4 start, vec4 dir, const vector<Triangle>& triangles, int depth)
 
       /* Fire a recursive ray in this sample direction, weighting the result */
       indirectLight += r1 * CastRay(intersection.position - (dir * bounceBiasThreshold), normalize(sampleWorldSpace), triangles, depth + 1) / pdf;
+      firedRays++;
     }
 
     /* Average the sum of the samples */
-    indirectLight /= (float) PATH_TRACER_SAMPLES;
+    indirectLight /= (float) firedRays;
 
     /* Compute and return reflected light */
-    vec3 colour = triangles[intersection.triangleIndex].color;
-    return (directLight / (float) M_PI + 2.0f * indirectLight) * colour;
-  } else return distantEnvironmentLight;
+    vec3 colour = intersectedTriangle.color;
+    reflectedLight = (directLight / (float) M_PI + 2.0f * indirectLight) * colour;
+  } else reflectedLight = distantEnvironmentLight;
+
+  return reflectedLight / (float) ((depth + 1) * (depth + 1));
+}
+
+void reflect(vec3 dir, vec3 normal, vec3& reflectionDir) {
+  reflectionDir = normalize(dir - 2 * dot(dir, normal) * normal);
 }
 
 void getSampleTransform(vec3 normal, vec3 nX, vec3 nY, mat3 &transform) {
@@ -242,8 +258,7 @@ void getRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 }
 
 void updateRotation() {
-	mat3 RT;
-	getRotationMatrix(pitch, yaw, 0, RT);
+	mat3 RT; getRotationMatrix(pitch, yaw, 0, RT);
 	R = transpose(mat4(RT));
 }
 

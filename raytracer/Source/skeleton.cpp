@@ -22,14 +22,25 @@ SDL_Event event;
 #define SCREEN_HEIGHT 300
 #define FULLSCREEN_MODE false
 
+// Maximum number of times a photon can bounce
 #define MAX_PHOTON_DEPTH 20
+
+// Maximum number of times a ray from the camera can reflect/refract
+#define MAX_CAMERA_RAY_DEPTH 25
+
+// Filter constant when estimating radiance from the photon maps
 #define FILTER_CONSTANT 1
 
+// Number of rays to fire at each light source when
+// calculating direct illumination
 // Must be square number
 #define NUM_SHADOW_RAYS 36
 
-#define GLOBAL_REF_INDEX 1
+// Angle of the spotlight cutoff for the lightsources
 #define SPOTLIGHT_CUTOFF M_PI/2
+
+// Global refractive index
+#define GLOBAL_REF_INDEX 1
 
 enum geometry {triangle, sphere};
 enum bounce {diffuse, specular, none};
@@ -49,31 +60,37 @@ struct Photon {
   vec3 direction;
 };
 
+// Variables reassigned from command line
 bool PHOTON_MAPPER = false;
 int NUM_PHOTONS = 5000;
 int NUM_NEAREST_PHOTONS = 200;
 
+// Camera values
 const float focalLength = SCREEN_HEIGHT * 3/2;
 const vec4 defaultCameraPos(0.0, 0.0, -4.0, 1.0);
 vec4 cameraPos(0.0, 0.0, -4.0, 1.0);
 
-const vec4 defaultLightPos( 0, -0.5, -0.7, 1.0 );
-vec4 lightPos( 0, -0.5, -0.7, 1.0 );
-vec3 lightColor = 14.f * vec3( 1, 1, 1 );
+// Indirect lighting for Phong
 vec3 indirectLight = 0.5f * vec3( 1, 1, 1 );
+
+// Shadow Bias
 const float shadowBiasThreshold = 0.001f;
 
-std::vector<Triangle> triangles;
-std::vector<Sphere> spheres;
-std::vector<LightSource> lights;
+// Standard geometry
+vector<Triangle> triangles;
+vector<Sphere> spheres;
+vector<LightSource> lights;
 
-std::vector<PhongTriangle> phongTriangles;
-std::vector<PhongSphere> phongSpheres;
-std::vector<PhongLightSource> phongLights;
+// Phong geometry
+vector<PhongTriangle> phongTriangles;
+vector<PhongSphere> phongSpheres;
+vector<PhongLightSource> phongLights;
 
-std::vector<Photon> photonMap;
-std::vector<Photon> causticMap;
+// Photon maps
+vector<Photon> photonMap;
+vector<Photon> causticMap;
 
+// Camera rotation
 mat4 R;
 float yaw = 0;
 float pitch = 0;
@@ -98,8 +115,8 @@ vec3 getDirectLight(const Intersection& i, const LightSource& l);
 vec3 sampleLightSource(const LightSource& l);
 void sampleSquareLightSource(const LightSource& l, vector<vec3>& points);
 
-void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector<Photon>& map);
-vec3 getNearestPhotonsPower(Intersection& intersection, float maxRadius, vector<Photon>& map);
+void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector<Photon>& map, float& maxDistance);
+vec3 getNearestPhotonsPower(Intersection& intersection, vector<Photon>& map);
 
 vec3 reflect(vec3 dir, vec3 normal);
 vec3 refract(vec3 dir, vec3 normal, Material material);
@@ -217,7 +234,7 @@ vec3 getPhongPixelValue(vec3 direction) {
 }
 
 vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
-  if (depth > 25) return vec3(0.0,0.0,0.0);
+  if (depth > MAX_CAMERA_RAY_DEPTH) return vec3(0.0,0.0,0.0);
 
   vec3 colour(0.0,0.0,0.0);
   vec3 emmittedLight(0.0,0.0,0.0);
@@ -239,6 +256,13 @@ vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
   if (closestIntersection(start, direction, intersection)) {
     Material material = getMaterial(intersection);
 
+    // If the surface is a mirror
+    if (glm::equal(material.specRef, vec3(1.0f,1.0f,1.0f))[0]) {
+      vec3 reflectDir = reflect(intersection.direction, intersection.normal);
+
+      return 0.9f * getPixelValue(intersection.position, reflectDir, depth + 1);
+    }
+
     if (material.refractiveIndex > 0.0f) {
       vec3 refractDir = refract(direction, intersection.normal, material);
       vec3 reflectDir = reflect(direction, intersection.normal);
@@ -255,35 +279,16 @@ vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
       reflectedColour = getPixelValue(intersection.position, reflectDir, depth + 1);
 
       return fresnelCoeff * reflectedColour + (1 - fresnelCoeff) * refractedColour;
-      //Vec3f refractionColor = 0, reflectionColor = 0;
-      // // compute fresnel
-      // float kr;
-      // fresnel(dir, hitNormal, isect.hitObject->ior, kr);
-      // bool outside = dir.dotProduct(hitNormal) < 0;
-      // Vec3f bias = options.bias * hitNormal;
-      // // compute refraction if it is not a case of total internal reflection
-      // if (kr < 1) {
-      //     Vec3f refractionDirection = refract(dir, hitNormal, isect.hitObject->ior).normalize();
-      //     Vec3f refractionRayOrig = outside ? hitPoint - bias : hitPoint + bias;
-      //     refractionColor = castRay(refractionRayOrig, refractionDirection, objects, lights, options, depth + 1);
-      // }
-      //
-      // Vec3f reflectionDirection = reflect(dir, hitNormal).normalize();
-      // Vec3f reflectionRayOrig = outside ? hitPoint + bias : hitPoint - bias;
-      // reflectionColor = castRay(reflectionRayOrig, reflectionDirection, objects, lights, options, depth + 1);
-      //
-      // // mix the two
-      // hitColor += reflectionColor * kr + refractionColor * (1 - kr);
-
-      //return getPixelValue(intersection.position, refractDir, depth + 1);
     }
 
     for (size_t i = 0; i < lights.size(); i++) {
       directLight += getDirectLight(intersection, lights[i]);
     }
 
-    causticLight += getNearestPhotonsPower(intersection, 0.1, causticMap);
-    diffuseLight += getNearestPhotonsPower(intersection, 0.1, photonMap);
+    causticLight += getNearestPhotonsPower(intersection, causticMap);
+    diffuseLight += getNearestPhotonsPower(intersection, photonMap);
+  } else {
+    return vec3(0.0f,0.0f,0.0f);
   }
 
   colour = causticLight + directLight + diffuseLight + emmittedLight;
@@ -318,18 +323,18 @@ vec3 refract(vec3 dir, vec3 normal, Material material) {
   }
 
   float n = (float) n1 / n2;
-  //float s = 1.0f - (float) (n * n * (1.0f - c1 * c1));
-  float s = 1.0f - pow(n, 2.0f) * (1.0f - pow(c1, 2.0f));
+  float s = 1.0f - (float) (n * n * (1.0f - c1 * c1));
 
   if (s < 0.0f) {
+    // total internal reflection
     return reflect(dir, normal);
   } else {
     return normalize(n * dir + (n * c1 - (float) sqrtf(s)) * normal);
   }
 }
 
+// Calculate the fresnel coefficient
 float fresnel(vec3 dir, vec3 normal, Material material) {
-
   dir = normalize(dir);
   normal = normalize(normal);
 
@@ -353,7 +358,8 @@ float fresnel(vec3 dir, vec3 normal, Material material) {
   float sint = n * sqrtf(max(0.0f, 1 - c1 * c1));
 
   if (sint >= 1) {
-      return 1.0f;
+    // total internal reflection
+    return 1.0f;
   } else {
     float cost = sqrtf(max(0.0f, 1 - sint * sint));
     c1 = fabsf(c1);
@@ -378,6 +384,7 @@ void sampleSquareLightSource(const LightSource& l, vector<vec3>& points) {
 
   int gridWidth = sqrt(NUM_SHADOW_RAYS);
 
+  // Create a randomised grid
   for (int i = 0; i < gridWidth; i++) {
     for (int j = 0; j < gridWidth; j++) {
       float x = (l.position.x - l.width/2 + (l.width/gridWidth)/2) + (i * (l.width/gridWidth))
@@ -391,11 +398,12 @@ void sampleSquareLightSource(const LightSource& l, vector<vec3>& points) {
   }
 }
 
-void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector<Photon>& map) {
+void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector<Photon>& map, float& maxDistance) {
   vector<float> distances;
 
   indices.clear();
 
+  // Iterate over all photons in the map
   for (int i = 0; i < map.size(); i++) {
     vec3 ipos = intersection.position;
       vec3 ppos = map[i].position;
@@ -403,9 +411,12 @@ void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector
       float dist = distance(ipos, ppos);
 
       if (indices.size() < NUM_NEAREST_PHOTONS) {
+        // There are fewer than needed photons in the list so add
         indices.push_back(i);
         distances.push_back(dist);
       } else {
+        // Find the furthest photon currently in the list and replace it with this photon
+        // if it is closer
         int furthestIndex = 0;
         float maxDist = -numeric_limits<float>::max();
 
@@ -416,6 +427,8 @@ void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector
           }
         }
 
+        maxDistance = maxDist;
+
         if (dist < maxDist) {
           indices[furthestIndex] = i;
           distances[furthestIndex] = dist;
@@ -424,48 +437,34 @@ void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector
   }
 }
 
-vec3 getNearestPhotonsPower(Intersection& intersection, float maxRadius, vector<Photon>& map) {
+vec3 getNearestPhotonsPower(Intersection& intersection, vector<Photon>& map) {
   vector<int> nearestPhotonsIndex;
   vec3 accumPower = vec3(0.0f,0.0f,0.0f);
   float radius = 0.0f;
-
-  getNNearestPhotons(intersection, nearestPhotonsIndex, map);
-
   float dist = 0.0f;
   vec3 photonPos(1.0,1.0,1.0);
-  vec3 projectedPos(1.0,1.0,1.0);
+
+  // Retrieve the nearest photons
+  getNNearestPhotons(intersection, nearestPhotonsIndex, map, radius);
 
   for (size_t i = 0; i < nearestPhotonsIndex.size(); i++) {
     photonPos = map[nearestPhotonsIndex[i]].position;
-    //projectedPos = photonPos - dot(photonPos - intersection.position, intersection.normal) * intersection.normal;
-
     dist = distance(intersection.position, photonPos);
 
-    if (dist > radius) {
-      radius = dist;
-    }
-  }
-
-  for (size_t i = 0; i < nearestPhotonsIndex.size(); i++) {
-    photonPos = map[nearestPhotonsIndex[i]].position;
-    //projectedPos = photonPos - dot(photonPos - intersection.position, intersection.normal) * intersection.normal;
-
-    dist = distance(intersection.position, photonPos);
-
+    // Weight each photons power on its distance from the intersection
     float wpc = 1.0f - (dist / (FILTER_CONSTANT * radius));
 
     accumPower += (map[nearestPhotonsIndex[i]].power * wpc);
   }
 
+  // Calculate the unit power by dividing by the area of the projected sphere
   vec3 unitPower = accumPower / (float) ((1.0f - FILTER_CONSTANT * (float) 2/3) * (float) M_PI * pow(radius, 2.0f));
 
   return unitPower;
 }
 
+// Emit photons from all light sources
 void emitPhotons() {
-  //photonMap.reserve( NUM_PHOTONS );
-  //causticMap.reserve( NUM_PHOTONS );
-
   int numLights = lights.size();
 
   cout << "-------------------" << endl;
@@ -482,9 +481,10 @@ void emitPhotons() {
   cout << "-------------------" << endl;
 }
 
-void emitPhotonsFromLight(LightSource &l, int NUM_PHOTONS) {
+// Emit numPhotons from the light source
+void emitPhotonsFromLight(LightSource &l, int numPhotons) {
 
-  for(int i = 0; i < NUM_PHOTONS; i++) {
+  for(int i = 0; i < numPhotons; i++) {
     vec3 direction = -l.direction;
     vec3 position = sampleLightSource(l);
 
@@ -497,10 +497,11 @@ void emitPhotonsFromLight(LightSource &l, int NUM_PHOTONS) {
       direction3d.z = ((float) rand() / (RAND_MAX)) * 2 - 1;
     }
 
-    tracePhoton((l.watts / NUM_PHOTONS) * l.color, position, direction3d, 0, none);
+    tracePhoton((l.watts / numPhotons) * l.color, position, direction3d, 0, none);
   }
 }
 
+// Recursive function to trace a photon in the scene
 bool tracePhoton(vec3 power, vec3 start, vec3 direction, int depth, bounce bounce) {
   if (depth > MAX_PHOTON_DEPTH) return false;
 
@@ -511,6 +512,7 @@ bool tracePhoton(vec3 power, vec3 start, vec3 direction, int depth, bounce bounc
     vec3 normal = intersection.normal;
     Material material(color,color, 0.0);
 
+    // Get the material parameters
     if (intersection.intersectionType == triangle) {
       Triangle triangle = triangles[intersection.index];
       material = triangle.material;
@@ -539,13 +541,18 @@ bool tracePhoton(vec3 power, vec3 start, vec3 direction, int depth, bounce bounc
 
     float rnd = ((float) rand() / RAND_MAX);
 
-    if (material.refractiveIndex == 0) {
+    if (material.refractiveIndex > 0.0f) {
+      // Transmit photon
+      vec3 refractDir = refract(direction, normal, material);
+
+      tracePhoton(power, intersection.position, refractDir, depth + 1, specular);
+    } else {
       if (rnd < Pd) {
         //Diffuse reflection
-        tracePhoton(power * color, intersection.position + reflectionDir * shadowBiasThreshold, reflectionDir, depth + 1, diffuse);
+        tracePhoton(power * color, intersection.position, reflectionDir, depth + 1, diffuse);
       } else if (rnd < Ps + Pd) {
         // Specular reflection
-        tracePhoton(specPower * color, intersection.position + reflectionDir * shadowBiasThreshold, reflectionDir, depth + 1, specular);
+        tracePhoton(specPower * color, intersection.position, reflectionDir, depth + 1, specular);
       } else {
         // Absorbtion
         if (depth > 0) {
@@ -558,17 +565,13 @@ bool tracePhoton(vec3 power, vec3 start, vec3 direction, int depth, bounce bounc
           else photonMap.push_back(p);
         }
       }
-    } else {
-      // transmit photon
-      vec3 refractDir = refract(direction, normal, material);
-
-      tracePhoton(power, intersection.position, refractDir, depth + 1, specular);
     }
   }
 
   return false;
 }
 
+// Get the direct light component for a given intersection and lightsource
 vec3 getDirectLight(const Intersection& i, const LightSource& l) {
   vec3 nHat;
   vec3 color;
@@ -636,8 +639,9 @@ vec3 getDirectLight(const Intersection& i, const LightSource& l) {
 	return ((float) hitsLight / lightPoints.size()) * (directLight / (float) (hitsLight + 1));
 }
 
+// Calculate the phong lighting for a given intersection and light source
+// Using equation from https://en.wikipedia.org/wiki/Phong_reflection_model
 vec3 phongComputeLight( const Intersection &i, const PhongLightSource &l ) {
-  // Using equation from https://en.wikipedia.org/wiki/Phong_reflection_model
   vec3 light(0.0,0.0,0.0);
 
   vec3 Lm = normalize(l.position - i.position);
@@ -733,6 +737,7 @@ vec3 phongComputeLight( const Intersection &i, const PhongLightSource &l ) {
   return light;
 }
 
+// Intersect triangle
 bool intersectTriangle(Intersection& closestIntersection, vec3 start, vec3 dir, vec3 v0, vec3 v1, vec3 v2, int index, vec3 normal) {
   bool intersectionFound = false;
 
@@ -775,6 +780,7 @@ bool intersectTriangle(Intersection& closestIntersection, vec3 start, vec3 dir, 
   return intersectionFound;
 }
 
+// Intersect sphere
 bool intersectSphere(Intersection& closestIntersection, vec3 start, vec3 dir, vec3 ce, float ra, int index) {
   bool intersectionFound = false;
 
@@ -805,7 +811,8 @@ bool intersectSphere(Intersection& closestIntersection, vec3 start, vec3 dir, ve
   return intersectionFound;
 }
 
-// Requires axis aligned light source at the moment
+// Intersect a square
+// Requires axis aligned square at the moment
 bool intersectSquare(Intersection& intersection, vec3 start, vec3 dir, vec3 position, vec3 normal, float width, float length) {
   bool intersectionFound = false;
 
@@ -858,6 +865,7 @@ bool closestIntersection(vec3 start, vec3 dir, Intersection& closestIntersection
   return intersectionFound;
 }
 
+// Return the material at the intersection
 Material getMaterial(Intersection& intersection) {
   if (intersection.intersectionType == triangle) {
     return triangles[intersection.index].material;
@@ -866,9 +874,11 @@ Material getMaterial(Intersection& intersection) {
   }
 }
 
+// Draw the photons on a new screen
 void drawPhotons(screen* screen) {
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
+  // Display the global photons
   for (int i = 0; i < photonMap.size(); i++) {
     Photon p = photonMap[i];
 
@@ -876,9 +886,10 @@ void drawPhotons(screen* screen) {
 
     int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
     int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power * 1000.0f);
+    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, normalize(p.power));
   }
 
+  // Display the caustic photons
   for (int i = 0; i < causticMap.size(); i++) {
     Photon p = causticMap[i];
 
@@ -886,24 +897,25 @@ void drawPhotons(screen* screen) {
 
     int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
     int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, p.power * 1000.0f);
+    if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, normalize(p.power));
   }
 
-  // for (int i = 0; i < lights.size(); i++) {
-  //   float width = lights[i].width;
-  //   float length = lights[i].length;
-  //
-  //   for (float j = -width/2; j <= width/2; j += width/100) {
-  //     for (float k = -length/2; k <= length/2; k += length/100) {
-  //       vec4 pixelPos(lights[i].position.x + j, lights[i].position.y, lights[i].position.z + k, 1);
-  //       vec4 pos = R * pixelPos - cameraPos;
-  //
-  //       int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
-  //       int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-  //       if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, lights[i].color);
-  //     }
-  //   }
-  // }
+  // Show the light sources
+  /* for (int i = 0; i < lights.size(); i++) {
+    float width = lights[i].width;
+    float length = lights[i].length;
+
+    for (float j = -width/2; j <= width/2; j += width/100) {
+      for (float k = -length/2; k <= length/2; k += length/100) {
+        vec4 pixelPos(lights[i].position.x + j, lights[i].position.y, lights[i].position.z + k, 1);
+        vec4 pos = R * pixelPos - cameraPos;
+
+        int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
+        int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
+        if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, lights[i].color);
+      }
+    }
+  }*/
 
 }
 
@@ -1025,7 +1037,6 @@ bool Update() {
         case SDLK_t:
           // Reset camera position
           cameraPos = defaultCameraPos;
-          lightPos = defaultLightPos;
           pitch = 0;
           yaw = 0;
           updateRotation();
@@ -1047,24 +1058,6 @@ bool Update() {
 					break;
 				case SDLK_MINUS:
 					moveCameraForward(-1, 0.25);
-					break;
-				case SDLK_i:
-					lightPos.z += 0.5;
-					break;
-				case SDLK_k:
-					lightPos.z -= 0.5;
-					break;
-				case SDLK_j:
-					lightPos.x -= 0.5;
-					break;
-				case SDLK_l:
-					lightPos.x += 0.5;
-					break;
-				case SDLK_o:
-					lightPos.y -= 0.5;
-					break;
-				case SDLK_p:
-					lightPos.y += 0.5;
 					break;
 	      case SDLK_ESCAPE:
           /* Move camera quit */

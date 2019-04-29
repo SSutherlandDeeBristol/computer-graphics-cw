@@ -103,6 +103,7 @@ vec3 getNearestPhotonsPower(Intersection& intersection, float maxRadius, vector<
 
 vec3 reflect(vec3 dir, vec3 normal);
 vec3 refract(vec3 dir, vec3 normal, Material material);
+float fresnel(vec3 dir, vec3 normal, Material material);
 
 bool closestIntersection(vec3 start, vec3 dir, Intersection& closestIntersection);
 bool intersectTriangle(Intersection& closestIntersection, vec3 start, vec3 dir, vec3 v0, vec3 v1, vec3 v2, int index, vec3 normal);
@@ -216,7 +217,7 @@ vec3 getPhongPixelValue(vec3 direction) {
 }
 
 vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
-  if (depth > 20) return vec3(255.0,0.0,0.0);
+  if (depth > 25) return vec3(0.0,0.0,0.0);
 
   vec3 colour(0.0,0.0,0.0);
   vec3 emmittedLight(0.0,0.0,0.0);
@@ -240,7 +241,41 @@ vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
 
     if (material.refractiveIndex > 0.0f) {
       vec3 refractDir = refract(direction, intersection.normal, material);
-      return getPixelValue(intersection.position, refractDir, depth + 1);
+      vec3 reflectDir = reflect(direction, intersection.normal);
+
+      vec3 refractedColour(0.0,0.0,0.0);
+      vec3 reflectedColour(0.0,0.0,0.0);
+
+      float fresnelCoeff = fresnel(direction, intersection.normal, material);
+
+      if (fresnelCoeff < 1) {
+        refractedColour = getPixelValue(intersection.position, refractDir, depth + 1);
+      }
+
+      reflectedColour = getPixelValue(intersection.position, reflectDir, depth + 1);
+
+      return fresnelCoeff * reflectedColour + (1 - fresnelCoeff) * refractedColour;
+      //Vec3f refractionColor = 0, reflectionColor = 0;
+      // // compute fresnel
+      // float kr;
+      // fresnel(dir, hitNormal, isect.hitObject->ior, kr);
+      // bool outside = dir.dotProduct(hitNormal) < 0;
+      // Vec3f bias = options.bias * hitNormal;
+      // // compute refraction if it is not a case of total internal reflection
+      // if (kr < 1) {
+      //     Vec3f refractionDirection = refract(dir, hitNormal, isect.hitObject->ior).normalize();
+      //     Vec3f refractionRayOrig = outside ? hitPoint - bias : hitPoint + bias;
+      //     refractionColor = castRay(refractionRayOrig, refractionDirection, objects, lights, options, depth + 1);
+      // }
+      //
+      // Vec3f reflectionDirection = reflect(dir, hitNormal).normalize();
+      // Vec3f reflectionRayOrig = outside ? hitPoint + bias : hitPoint - bias;
+      // reflectionColor = castRay(reflectionRayOrig, reflectionDirection, objects, lights, options, depth + 1);
+      //
+      // // mix the two
+      // hitColor += reflectionColor * kr + refractionColor * (1 - kr);
+
+      //return getPixelValue(intersection.position, refractDir, depth + 1);
     }
 
     for (size_t i = 0; i < lights.size(); i++) {
@@ -290,6 +325,41 @@ vec3 refract(vec3 dir, vec3 normal, Material material) {
     return reflect(dir, normal);
   } else {
     return normalize(n * dir + (n * c1 - (float) sqrtf(s)) * normal);
+  }
+}
+
+float fresnel(vec3 dir, vec3 normal, Material material) {
+
+  dir = normalize(dir);
+  normal = normalize(normal);
+
+  float n1 = (float) GLOBAL_REF_INDEX;
+  float n2 = material.refractiveIndex;
+
+  float c1 = dot(normal, dir);
+
+  if (c1 > 0.0f) {
+    // inside the material
+    n1 = material.refractiveIndex;
+    n2 = (float) GLOBAL_REF_INDEX;
+    normal = -normal;
+  } else {
+    // outside the material
+    c1 = -c1;
+  }
+
+  float n = (float) n1 / n2;
+
+  float sint = n * sqrtf(max(0.0f, 1 - c1 * c1));
+
+  if (sint >= 1) {
+      return 1.0f;
+  } else {
+    float cost = sqrtf(max(0.0f, 1 - sint * sint));
+    c1 = fabsf(c1);
+    float Rs = ((n1 * c1) - (n1 * cost)) / ((n2 * c1) + (n1 * cost));
+    float Rp = ((n1 * c1) - (n2 * cost)) / ((n1 * c1) + (n2 * cost));
+    return (float) (Rs * Rs + Rp * Rp) / 2;
   }
 }
 

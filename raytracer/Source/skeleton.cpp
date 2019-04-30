@@ -18,18 +18,18 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 300
-#define SCREEN_HEIGHT 300
+#define SCREEN_WIDTH 600
+#define SCREEN_HEIGHT 600
 #define FULLSCREEN_MODE false
 
 // Maximum number of times a photon can bounce
-#define MAX_PHOTON_DEPTH 20
+#define MAX_PHOTON_DEPTH 25
 
 // Maximum number of times a ray from the camera can reflect/refract
 #define MAX_CAMERA_RAY_DEPTH 25
 
 // Filter constant when estimating radiance from the photon maps
-#define FILTER_CONSTANT 1
+#define FILTER_CONSTANT 1.005
 
 // Number of rays to fire at each light source when
 // calculating direct illumination
@@ -66,8 +66,8 @@ int NUM_PHOTONS = 5000;
 int NUM_NEAREST_PHOTONS = 200;
 
 // Camera values
-const float focalLength = SCREEN_HEIGHT * 3/2;
-const vec4 defaultCameraPos(0.0, 0.0, -4.0, 1.0);
+const float focalLength = SCREEN_HEIGHT;
+const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
 vec4 cameraPos(0.0, 0.0, -4.0, 1.0);
 
 // Indirect lighting for Phong
@@ -258,9 +258,9 @@ vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
 
     // If the surface is a mirror
     if (glm::equal(material.specRef, vec3(1.0f,1.0f,1.0f))[0]) {
-      vec3 reflectDir = reflect(intersection.direction, intersection.normal);
+      vec3 reflectDir = reflect(direction, intersection.normal);
 
-      return 0.9f * getPixelValue(intersection.position, reflectDir, depth + 1);
+      return getPixelValue(intersection.position, reflectDir, depth + 1);
     }
 
     if (material.refractiveIndex > 0.0f) {
@@ -272,7 +272,7 @@ vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
 
       float fresnelCoeff = fresnel(direction, intersection.normal, material);
 
-      if (fresnelCoeff < 1) {
+      if (fresnelCoeff < 1.0f) {
         refractedColour = getPixelValue(intersection.position, refractDir, depth + 1);
       }
 
@@ -788,23 +788,25 @@ bool intersectSphere(Intersection& closestIntersection, vec3 start, vec3 dir, ve
   float a = dot(dir, dir);
   float b = 2.0f * dot(oc, dir);
   float c = dot(oc,oc) - ra*ra;
-  float discriminant = b*b - 4*a*c;
+  float discriminant = b*b - 4.0f*a*c;
 
-  if (discriminant < 0) {
+  if (discriminant < 0.0f) {
     return false;
   } else {
-    float t = (-b - sqrt(discriminant)) / (2.0*a);
-    vec3 position = start + t * dir;
-    float dist = distance(start, position);
+    float t = (-b - sqrt(discriminant)) / (2.0f*a);
+    if (t >= 0) {
+      vec3 position = start + t * dir;
+      float dist = distance(start, position);
 
-    if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
-      intersectionFound = true;
-      closestIntersection.distance = dist;
-      closestIntersection.position = position;
-      closestIntersection.normal = normalize(position - ce);
-      closestIntersection.index = index;
-      closestIntersection.intersectionType = sphere;
-      closestIntersection.direction = dir;
+      if (dist <= closestIntersection.distance && dist > shadowBiasThreshold) {
+        intersectionFound = true;
+        closestIntersection.distance = dist;
+        closestIntersection.position = position;
+        closestIntersection.normal = normalize(position - ce);
+        closestIntersection.index = index;
+        closestIntersection.intersectionType = sphere;
+        closestIntersection.direction = dir;
+      }
     }
   }
 
@@ -817,7 +819,8 @@ bool intersectSquare(Intersection& intersection, vec3 start, vec3 dir, vec3 posi
   bool intersectionFound = false;
 
   vec3 corner(position.x - width/2, position.y, position.z - length/2);
-  float t = dot((corner - start), normal) / dot(dir, normal);
+  float t = dot((normalize(corner) - normalize(start)), normalize(normal))
+            / dot(normalize(dir), normalize(normal));
 
   if (t >= 0) {
     vec3 pos = start + t * dir;

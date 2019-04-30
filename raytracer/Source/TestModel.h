@@ -183,13 +183,11 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
   Material glass( vec3(0,0,0), vec3(0,0,0), 1.5f);
 
 	lights.clear();
-	lights.reserve( 2 );
 
 	triangles.clear();
 	triangles.reserve( 5*2*3 );
 
 	spheres.clear();
-	spheres.reserve( 2 );
 
 	// ---------------------------------------------------------------------------
 	// Room
@@ -205,6 +203,9 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	vec3 F(0,L,0);
 	vec3 G(L,L,L);
 	vec3 H(0,L,L);
+
+  // ---------------------------------------------------------------------------
+  // Lights
 
 	lights.push_back( LightSource( 60, vec3(1, 1, 1), vec3(0, -1.0, -0.5), vec3(0, 1, 0), 0.4, 0.4) );
   // float middleX = 0.0;
@@ -223,10 +224,16 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
   // lights.push_back( LightSource( lightPower/4, vec3(1, 1, 1), vec3(middleX - offsetX, -1.0, middleZ + offsetZ), direction, width, length) );
   // lights.push_back( LightSource( lightPower/4, vec3(1, 1, 1), vec3(middleX - offsetX, -1.0, middleZ - offsetZ), direction, width, length) );
 
-	spheres.push_back( Sphere(vec3(0.5,0.7,-0.2), 0.3, white, glass) );
-  spheres.push_back( Sphere(vec3(-0.5, 0.7, 0.2), 0.3, white, mirror));
+  // ---------------------------------------------------------------------------
+  // Spheres
+
+	spheres.push_back( Sphere(vec3(0.4,0.6,-0.2), 0.4, white, glass) );
+  spheres.push_back( Sphere(vec3(-0.4, 0.6, 0.2), 0.4, white, mirror));
   // spheres.push_back( Sphere(vec3(0.3,0.2,-0.3), 0.2, white, glass) );
   // spheres.push_back( Sphere(vec3(-0.4,0.8,-0.6), 0.15, white, glass) );
+
+  // ---------------------------------------------------------------------------
+  // Walls
 
 	// Floor:
 	triangles.push_back( Triangle( C, B, A, white, matteWhite ) );

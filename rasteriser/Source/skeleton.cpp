@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <glm/glm.hpp>
 #include <SDL.h>
 #include "SDLauxiliary.h"
@@ -109,8 +111,10 @@ int main(int argc, char* argv[]) {
   screen *mainScreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
 
   // LoadTestTriangleZ(triangles);
-  LoadTestModel(triangles);
+  // LoadTestModel(triangles);
   // LoadTestTriangle(triangles);
+  // LoadBunny(triangles);
+  LoadTestModel(triangles);
 
   ResetView();
 

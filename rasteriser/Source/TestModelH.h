@@ -6,9 +6,12 @@
 #include <glm/glm.hpp>
 #include <vector>
 
+using glm::vec3;
+using glm::vec4;
+using namespace std;
+
 // Used to describe a triangular surface:
-class Triangle
-{
+class Triangle {
 public:
 	glm::vec4 v0;
 	glm::vec4 v1;
@@ -17,13 +20,11 @@ public:
 	glm::vec3 color;
 
 	Triangle( glm::vec4 v0, glm::vec4 v1, glm::vec4 v2, glm::vec3 color )
-		: v0(v0), v1(v1), v2(v2), color(color)
-	{
+		: v0(v0), v1(v1), v2(v2), color(color) {
 		ComputeNormal();
 	}
 
-	void ComputeNormal()
-	{
+	void ComputeNormal() {
 	  glm::vec3 e1 = glm::vec3(v1.x-v0.x,v1.y-v0.y,v1.z-v0.z);
 	  glm::vec3 e2 = glm::vec3(v2.x-v0.x,v2.y-v0.y,v2.z-v0.z);
 	  glm::vec3 normal3 = glm::normalize( glm::cross( e2, e1 ) );
@@ -34,10 +35,44 @@ public:
 	}
 };
 
-void LoadTestTriangle( std::vector<Triangle>& triangles ) {
+void scale(std::vector<Triangle>& triangles, float L) {
+	for( size_t i=0; i<triangles.size(); ++i ) {
+		triangles[i].v0 *= 2/L;
+		triangles[i].v1 *= 2/L;
+		triangles[i].v2 *= 2/L;
 
-	using glm::vec3;
-	using glm::vec4;
+		triangles[i].v0 -= vec4(1,1,1,1);
+		triangles[i].v1 -= vec4(1,1,1,1);
+		triangles[i].v2 -= vec4(1,1,1,1);
+
+		triangles[i].v0.x *= -1;
+		triangles[i].v1.x *= -1;
+		triangles[i].v2.x *= -1;
+
+		triangles[i].v0.y *= -1;
+		triangles[i].v1.y *= -1;
+		triangles[i].v2.y *= -1;
+
+		triangles[i].v0.w = 1.0;
+		triangles[i].v1.w = 1.0;
+		triangles[i].v2.w = 1.0;
+
+		triangles[i].ComputeNormal();
+	}
+}
+
+void translate(std::vector<Triangle>& triangles, float dist, vec3 dir) {
+	for( size_t i=0; i<triangles.size(); ++i ) {
+		triangles[i].v0 += vec4((dist * dir), 0);
+		triangles[i].v1 += vec4((dist * dir), 0);
+		triangles[i].v2 += vec4((dist * dir), 0);
+	}
+}
+
+
+void LoadTestTriangle( std::vector<Triangle>& tris ) {
+
+	std::vector<Triangle> triangles;
 
 	vec3 white(  0.75f, 0.75f, 0.75f );
 
@@ -58,78 +93,53 @@ void LoadTestTriangle( std::vector<Triangle>& triangles ) {
 
 	triangles.push_back( Triangle( G, D, C, white ) );
 
+	scale(triangles, L);
+
 	for( size_t i=0; i<triangles.size(); ++i ) {
-		triangles[i].v0 *= 2/L;
-		triangles[i].v1 *= 2/L;
-		triangles[i].v2 *= 2/L;
-
-		triangles[i].v0 -= vec4(1,1,1,1);
-		triangles[i].v1 -= vec4(1,1,1,1);
-		triangles[i].v2 -= vec4(1,1,1,1);
-
-		triangles[i].v0.x *= -1;
-		triangles[i].v1.x *= -1;
-		triangles[i].v2.x *= -1;
-
-		triangles[i].v0.y *= -1;
-		triangles[i].v1.y *= -1;
-		triangles[i].v2.y *= -1;
-
-		triangles[i].v0.w = 1.0;
-		triangles[i].v1.w = 1.0;
-		triangles[i].v2.w = 1.0;
-
-		triangles[i].ComputeNormal();
+		tris.push_back(triangles[i]);
 	}
 
 }
 
-void LoadTestTriangleZ( std::vector<Triangle>& triangles ) {
-
-	using glm::vec3;
-	using glm::vec4;
+void LoadBunny(std::vector<Triangle>& tris) {
+	std::vector<Triangle> triangles;
+	std::ifstream infile("Resources/bunny.obj");
+	std::string line;
 
 	vec3 white(  0.75f, 0.75f, 0.75f );
 
-	float L = 555;			// Length of Cornell Box side.
+	/* Vector to store all vertices */
+	vector<vec4> vs;
 
-	vec4 A(L,0,0,1);
-	vec4 B(L/2,0,0,1);
-	vec4 C(L,0,L,1);
-	vec4 D(0,0,L,1);
+	while (std::getline(infile, line)) {
 
-	vec4 E(L,L,0,1);
-	vec4 F(0,L,0,1);
-	vec4 G(L,L,L,1);
-	vec4 H(0,L,L,1);
+		/* Try parse line */
+		std::istringstream iss(line);
+		string code;
+		float a, b, c;
+		if (!(iss >> code >> a >> b >> c)) {
+			cout << "Could not read file" << endl;
+			break;
+		}
 
-	triangles.clear();
-	triangles.reserve( 1 );
+		if (code.compare("v") == 0) {
+			/* Then this is a vertex definition */
+			vec4 vertex = vec4(a, b, c, 1.0);
+			vs.push_back(vertex);
+		} else {
+			/* This is a face definition */
+			Triangle triangle = Triangle(vs[a-1], vs[b-1], vs[c-1], white);
+			// triangle.ReverseNormal();
+			triangles.push_back(triangle);
+		}
+	}
 
-	triangles.push_back( Triangle( G, B, D, white ) );
+	float L = 0.3f;
+	scale(triangles, L);
+	translate(triangles, 2, vec3(-0.5,0.1,0.5));
 
 	for( size_t i=0; i<triangles.size(); ++i ) {
-		triangles[i].v0 *= 2/L;
-		triangles[i].v1 *= 2/L;
-		triangles[i].v2 *= 2/L;
-
-		triangles[i].v0 -= vec4(1,1,1,1);
-		triangles[i].v1 -= vec4(1,1,1,1);
-		triangles[i].v2 -= vec4(1,1,1,1);
-
-		triangles[i].v0.x *= -1;
-		triangles[i].v1.x *= -1;
-		triangles[i].v2.x *= -1;
-
-		triangles[i].v0.y *= -1;
-		triangles[i].v1.y *= -1;
-		triangles[i].v2.y *= -1;
-
-		triangles[i].v0.w = 1.0;
-		triangles[i].v1.w = 1.0;
-		triangles[i].v2.w = 1.0;
-
-		triangles[i].ComputeNormal();
+		tris.push_back(triangles[i]);
 	}
 
 }
@@ -138,11 +148,8 @@ void LoadTestTriangleZ( std::vector<Triangle>& triangles ) {
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-void LoadTestModel( std::vector<Triangle>& triangles )
-{
-	using glm::vec3;
-	using glm::vec4;
-
+void LoadTestModel( std::vector<Triangle>& tris) {
+	std::vector<Triangle> triangles;
 	// Defines colors:
 	vec3 red(    0.75f, 0.15f, 0.15f );
 	vec3 yellow( 0.75f, 0.75f, 0.15f );
@@ -259,31 +266,12 @@ void LoadTestModel( std::vector<Triangle>& triangles )
 
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3
+	scale(triangles, L);
 
-	for( size_t i=0; i<triangles.size(); ++i )
-	{
-		triangles[i].v0 *= 2/L;
-		triangles[i].v1 *= 2/L;
-		triangles[i].v2 *= 2/L;
-
-		triangles[i].v0 -= vec4(1,1,1,1);
-		triangles[i].v1 -= vec4(1,1,1,1);
-		triangles[i].v2 -= vec4(1,1,1,1);
-
-		triangles[i].v0.x *= -1;
-		triangles[i].v1.x *= -1;
-		triangles[i].v2.x *= -1;
-
-		triangles[i].v0.y *= -1;
-		triangles[i].v1.y *= -1;
-		triangles[i].v2.y *= -1;
-
-		triangles[i].v0.w = 1.0;
-		triangles[i].v1.w = 1.0;
-		triangles[i].v2.w = 1.0;
-
-		triangles[i].ComputeNormal();
+	for( size_t i=0; i<triangles.size(); ++i ) {
+		tris.push_back(triangles[i]);
 	}
+
 }
 
 #endif

@@ -5,12 +5,15 @@
 
 #include <glm/glm.hpp>
 #include <vector>
+#include <fstream>
+#include <sstream>
 
 using glm::vec3;
 using glm::mat3;
 using glm::vec4;
 using glm::mat4;
 using glm::distance;
+using namespace std;
 
 // Used to describe a light
 class PhongLightSource {
@@ -57,6 +60,11 @@ public:
 	{
 		ComputeNormal();
 	}
+
+  void ReverseNormal()
+  {
+    normal *= glm::vec3(-1,-1,-1);
+  }
 
 	void ComputeNormal()
 	{
@@ -128,6 +136,11 @@ public:
 		ComputeNormal();
 	}
 
+  void ReverseNormal()
+  {
+    normal *= glm::vec3(-1,-1,-1);
+  }
+
 	void ComputeNormal()
 	{
 	  vec3 e1 = glm::vec3(v1.x-v0.x,v1.y-v0.y,v1.z-v0.z);
@@ -154,11 +167,64 @@ public:
 	}
 };
 
+void GetRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
+	R[0][0] = cos(thetaY) * cos(thetaZ);
+	R[0][1] = -cos(thetaX) * sin(thetaZ) + sin(thetaX) * sin(thetaY) * cos(thetaZ);
+	R[0][2] = sin(thetaX) * sin(thetaZ) + cos(thetaX) * sin(thetaY) * cos(thetaZ);
+
+	R[1][0] = cos(thetaY) * sin(thetaZ);
+	R[1][1] = cos(thetaX) * cos(thetaZ) + sin(thetaX) * sin(thetaY) * sin(thetaZ);
+	R[1][2] = -sin(thetaX) * cos(thetaZ) + cos(thetaX) * sin(thetaY) * sin(thetaZ);
+
+	R[2][0] = -sin(thetaY);
+	R[2][1] = sin(thetaX) * cos(thetaY);
+	R[2][2] = cos(thetaX) * cos(thetaY);
+}
+
+void scale(std::vector<Triangle>& triangles, float L) {
+	for( size_t i=0; i<triangles.size(); ++i ) {
+		triangles[i].v0 *= 2/L;
+		triangles[i].v1 *= 2/L;
+		triangles[i].v2 *= 2/L;
+
+		triangles[i].v0 -= vec3(1,1,1);
+		triangles[i].v1 -= vec3(1,1,1);
+		triangles[i].v2 -= vec3(1,1,1);
+
+		triangles[i].v0.x *= -1;
+		triangles[i].v1.x *= -1;
+		triangles[i].v2.x *= -1;
+
+		triangles[i].v0.y *= -1;
+		triangles[i].v1.y *= -1;
+		triangles[i].v2.y *= -1;
+
+		triangles[i].ComputeNormal();
+	}
+}
+
+void translate(std::vector<Triangle>& triangles, float dist, vec3 dir) {
+	for( size_t i=0; i<triangles.size(); ++i ) {
+		triangles[i].v0 += (dist * dir);
+		triangles[i].v1 += (dist * dir);
+		triangles[i].v2 += (dist * dir);
+	}
+}
+
+void rotate(std::vector<Triangle>& triangles, mat3 rotation) {
+	for( size_t i=0; i<triangles.size(); ++i ) {
+		triangles[i].v0 = triangles[i].v0 * rotation;
+		triangles[i].v1 = triangles[i].v1 * rotation;
+		triangles[i].v2 = triangles[i].v2 * rotation;
+	}
+}
+
 // Loads the Cornell Box. It is scaled to fill the volume:
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spheres, std::vector<LightSource>& lights) {
+void LoadTestModel( std::vector<Triangle>& tris, std::vector<Sphere>& spheres, std::vector<LightSource>& lights) {
+  std::vector<Triangle> triangles;
 	// Defines colors:
 	vec3 red(    0.75f, 0.15f, 0.15f );
 	vec3 yellow( 0.75f, 0.75f, 0.15f );
@@ -227,10 +293,8 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
   // ---------------------------------------------------------------------------
   // Spheres
 
-	spheres.push_back( Sphere(vec3(0.4,0.6,-0.2), 0.4, white, glass) );
-  spheres.push_back( Sphere(vec3(-0.4, 0.6, 0.2), 0.4, white, mirror));
-  // spheres.push_back( Sphere(vec3(0.3,0.2,-0.3), 0.2, white, glass) );
-  // spheres.push_back( Sphere(vec3(-0.4,0.8,-0.6), 0.15, white, glass) );
+	// spheres.push_back( Sphere(vec3(0.4,0.6,-0.2), 0.4, white, glass) );
+  // spheres.push_back( Sphere(vec3(-0.4, 0.6, 0.2), 0.4, white, mirror));
 
   // ---------------------------------------------------------------------------
   // Walls
@@ -324,32 +388,15 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	// ----------------------------------------------
   // Scale to the volume [-1,1]^3
 
-	for( size_t i=0; i<triangles.size(); ++i )
-	{
-		triangles[i].v0 *= 2/L;
-		triangles[i].v1 *= 2/L;
-		triangles[i].v2 *= 2/L;
+  scale(triangles, L);
 
-		triangles[i].v0 -= vec3(1,1,1);
-		triangles[i].v1 -= vec3(1,1,1);
-		triangles[i].v2 -= vec3(1,1,1);
-
-		triangles[i].v0.x *= -1;
-		triangles[i].v1.x *= -1;
-		triangles[i].v2.x *= -1;
-
-		triangles[i].v0.y *= -1;
-		triangles[i].v1.y *= -1;
-		triangles[i].v2.y *= -1;
-
-		triangles[i].ComputeNormal();
-	}
+  for( size_t i=0; i<triangles.size(); ++i ) {
+    tris.push_back(triangles[i]);
+  }
 }
 
-void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<PhongSphere>& spheres, std::vector<PhongLightSource>& lights )
-{
-	using glm::vec3;
-	using glm::vec4;
+void LoadTestModelPhong( std::vector<PhongTriangle>& tris, std::vector<PhongSphere>& spheres, std::vector<PhongLightSource>& lights ) {
+  std::vector<PhongTriangle> triangles;
 
 	// Defines colors:
 	vec3 red(    0.75f, 0.15f, 0.15f );
@@ -504,27 +551,81 @@ void LoadTestModelPhong( std::vector<PhongTriangle>& triangles, std::vector<Phon
 	// ----------------------------------------------
 	// Scale to the volume [-1,1]^3
 
-	for( size_t i=0; i<triangles.size(); ++i )
-	{
-		triangles[i].v0 *= 2/L;
-		triangles[i].v1 *= 2/L;
-		triangles[i].v2 *= 2/L;
+  for( size_t i=0; i<triangles.size(); ++i )
+  {
+    triangles[i].v0 *= 2/L;
+    triangles[i].v1 *= 2/L;
+    triangles[i].v2 *= 2/L;
 
-		triangles[i].v0 -= vec3(1,1,1);
-		triangles[i].v1 -= vec3(1,1,1);
-		triangles[i].v2 -= vec3(1,1,1);
+    triangles[i].v0 -= vec3(1,1,1);
+    triangles[i].v1 -= vec3(1,1,1);
+    triangles[i].v2 -= vec3(1,1,1);
 
-		triangles[i].v0.x *= -1;
-		triangles[i].v1.x *= -1;
-		triangles[i].v2.x *= -1;
+    triangles[i].v0.x *= -1;
+    triangles[i].v1.x *= -1;
+    triangles[i].v2.x *= -1;
 
-		triangles[i].v0.y *= -1;
-		triangles[i].v1.y *= -1;
-		triangles[i].v2.y *= -1;
+    triangles[i].v0.y *= -1;
+    triangles[i].v1.y *= -1;
+    triangles[i].v2.y *= -1;
 
-		triangles[i].ComputeNormal();
+    triangles[i].ComputeNormal();
+  }
+
+	for( size_t i=0; i<triangles.size(); ++i ) {
+		tris.push_back(triangles[i]);
 	}
 }
+
+void LoadBunny(std::vector<Triangle>& tris) {
+	std::vector<Triangle> triangles;
+	std::ifstream infile("Resources/bunny.obj");
+	std::string line;
+
+	vec3 white(  0.75f, 0.75f, 0.75f );
+  Material glass(vec3(0.0,0.0,0.0), vec3(0.0,0.0,0.0), 1.52f);
+  Material matteWhite(white * 0.05f, vec3(0.0,0.0,0.0), 0.0f);
+
+	/* Vector to store all vertices */
+	vector<vec3> vs;
+
+	while (std::getline(infile, line)) {
+
+		/* Try parse line */
+		std::istringstream iss(line);
+		string code;
+		float a, b, c;
+		if (!(iss >> code >> a >> b >> c)) {
+			cout << "Could not read file" << endl;
+			break;
+		}
+
+		if (code.compare("v") == 0) {
+			/* Then this is a vertex definition */
+			vec3 vertex = vec3(a, b, c);
+			vs.push_back(vertex);
+		} else {
+			/* This is a face definition */
+			Triangle triangle = Triangle(vs[a-1], vs[b-1], vs[c-1], white, glass);
+			triangle.ReverseNormal();
+			triangles.push_back(triangle);
+		}
+	}
+
+  mat3 rotation;
+	GetRotationMatrix(0, M_PI, 0, rotation);
+	rotate(triangles, rotation);
+
+	float L = 0.3f;
+	scale(triangles, L);
+	translate(triangles, 2, vec3(-0.4,0.05,0.5));
+
+	for( size_t i=0; i<triangles.size(); ++i ) {
+		tris.push_back(triangles[i]);
+	}
+
+}
+
 
 
 #endif

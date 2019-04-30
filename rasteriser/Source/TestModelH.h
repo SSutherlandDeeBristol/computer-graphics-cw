@@ -8,6 +8,8 @@
 
 using glm::vec3;
 using glm::vec4;
+using glm::mat3;
+using glm::mat4;
 using namespace std;
 
 // Used to describe a triangular surface:
@@ -34,6 +36,20 @@ public:
 	  normal.w = 1.0;
 	}
 };
+
+void GetRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
+	R[0][0] = cos(thetaY) * cos(thetaZ);
+	R[0][1] = -cos(thetaX) * sin(thetaZ) + sin(thetaX) * sin(thetaY) * cos(thetaZ);
+	R[0][2] = sin(thetaX) * sin(thetaZ) + cos(thetaX) * sin(thetaY) * cos(thetaZ);
+
+	R[1][0] = cos(thetaY) * sin(thetaZ);
+	R[1][1] = cos(thetaX) * cos(thetaZ) + sin(thetaX) * sin(thetaY) * sin(thetaZ);
+	R[1][2] = -sin(thetaX) * cos(thetaZ) + cos(thetaX) * sin(thetaY) * sin(thetaZ);
+
+	R[2][0] = -sin(thetaY);
+	R[2][1] = sin(thetaX) * cos(thetaY);
+	R[2][2] = cos(thetaX) * cos(thetaY);
+}
 
 void scale(std::vector<Triangle>& triangles, float L) {
 	for( size_t i=0; i<triangles.size(); ++i ) {
@@ -69,6 +85,13 @@ void translate(std::vector<Triangle>& triangles, float dist, vec3 dir) {
 	}
 }
 
+void rotate(std::vector<Triangle>& triangles, mat3 rotation) {
+	for( size_t i=0; i<triangles.size(); ++i ) {
+		triangles[i].v0 = triangles[i].v0 * mat4(rotation);
+		triangles[i].v1 = triangles[i].v1 * mat4(rotation);
+		triangles[i].v2 = triangles[i].v2 * mat4(rotation);
+	}
+}
 
 void LoadTestTriangle( std::vector<Triangle>& tris ) {
 
@@ -133,6 +156,10 @@ void LoadBunny(std::vector<Triangle>& tris) {
 			triangles.push_back(triangle);
 		}
 	}
+
+	mat3 rotation;
+	GetRotationMatrix(0, M_PI, 0, rotation);
+	rotate(triangles, rotation);
 
 	float L = 0.3f;
 	scale(triangles, L);

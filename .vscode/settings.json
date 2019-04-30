@@ -40,6 +40,8 @@
     "ctime": "cpp",
     "string": "cpp",
     "fstream": "cpp",
-    "sstream": "cpp"
+    "sstream": "cpp",
+    "algorithm": "cpp",
+    "random": "cpp"
   }
 }

@@ -18,15 +18,15 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 600
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 300
+#define SCREEN_HEIGHT 300
 #define FULLSCREEN_MODE false
 
 // Maximum number of times a photon can bounce
-#define MAX_PHOTON_DEPTH 25
+#define MAX_PHOTON_DEPTH 50
 
 // Maximum number of times a ray from the camera can reflect/refract
-#define MAX_CAMERA_RAY_DEPTH 25
+#define MAX_CAMERA_RAY_DEPTH 50
 
 // Filter constant when estimating radiance from the photon maps
 #define FILTER_CONSTANT 1.005
@@ -34,7 +34,7 @@ SDL_Event event;
 // Number of rays to fire at each light source when
 // calculating direct illumination
 // Must be square number
-#define NUM_SHADOW_RAYS 36
+#define NUM_SHADOW_RAYS 64
 
 // Angle of the spotlight cutoff for the lightsources
 #define SPOTLIGHT_CUTOFF M_PI/2
@@ -164,6 +164,7 @@ int main(int argc, char* argv[]) {
     cout << "Number of nearest photons in radiance estimate: " << NUM_NEAREST_PHOTONS << endl;
     photonscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
     LoadTestModel(triangles, spheres, lights);
+    LoadBunny(triangles);
     emitPhotons();
   } else {
     LoadTestModelPhong(phongTriangles, phongSpheres, phongLights);

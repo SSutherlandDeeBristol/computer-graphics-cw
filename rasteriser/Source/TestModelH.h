@@ -163,7 +163,7 @@ void LoadBunny(std::vector<Triangle>& tris) {
 
 	float L = 0.3f;
 	scale(triangles, L);
-	translate(triangles, 2, vec3(-0.5,0.1,0.5));
+	translate(triangles, 2, vec3(-0.4, 0.05, 0.5));
 
 	for( size_t i=0; i<triangles.size(); ++i ) {
 		tris.push_back(triangles[i]);

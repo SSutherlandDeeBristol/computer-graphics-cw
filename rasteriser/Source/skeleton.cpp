@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
   // LoadTestTriangleZ(triangles);
   // LoadTestModel(triangles);
   // LoadTestTriangle(triangles);
-  // LoadBunny(triangles);
+  LoadBunny(triangles);
   LoadTestModel(triangles);
 
   ResetView();

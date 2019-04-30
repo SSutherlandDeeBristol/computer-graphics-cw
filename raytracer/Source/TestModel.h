@@ -180,7 +180,7 @@ void LoadTestModel( std::vector<Triangle>& triangles, std::vector<Sphere>& spher
 	Material matteCyan( cyan * matteDiffuseRef, vec3(0,0,0), 0.0f);
 
 	Material mirror( vec3(0,0,0), vec3(1.0f,1.0f,1.0f), 0.0f);
-  Material glass( vec3(0,0,0), vec3(0,0,0), 1.5f);
+  Material glass( vec3(0,0,0), vec3(0,0,0), 1.52f);
 
 	lights.clear();
 

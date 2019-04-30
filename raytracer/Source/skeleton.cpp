@@ -18,8 +18,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 600
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 500
+#define SCREEN_HEIGHT 500
 #define FULLSCREEN_MODE false
 
 // Maximum number of times a photon can bounce
@@ -34,7 +34,7 @@ SDL_Event event;
 // Number of rays to fire at each light source when
 // calculating direct illumination
 // Must be square number
-#define NUM_SHADOW_RAYS 36
+#define NUM_SHADOW_RAYS 64
 
 // Angle of the spotlight cutoff for the lightsources
 #define SPOTLIGHT_CUTOFF M_PI/2
@@ -109,8 +109,9 @@ void drawPhotons(screen* screen);
 vec3 getPhongPixelValue(vec3 direction);
 vec3 getPixelValue(vec3 start, vec3 direction, int depth);
 
-vec3 phongComputeLight(const Intersection &i, const PhongLightSource &l);
+vec3 getEmittedLight(vec3 start, vec3 dir);
 vec3 getDirectLight(const Intersection& i, const LightSource& l);
+vec3 phongComputeLight(const Intersection &i, const PhongLightSource &l);
 
 vec3 sampleLightSource(const LightSource& l);
 void sampleSquareLightSource(const LightSource& l, vector<vec3>& points);
@@ -242,16 +243,9 @@ vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
   vec3 causticLight(0.0,0.0,0.0);
   vec3 directLight(0.0,0.0,0.0);
 
-  Intersection lightIntersection;
   Intersection intersection;
 
-  for (size_t i = 0; i < lights.size(); i++) {
-    LightSource l = lights[i];
-
-    if (intersectSquare(lightIntersection, start, direction, l.position, l.direction, l.width, l.length)) {
-      emmittedLight += l.watts * l.color;
-    }
-  }
+  emmittedLight = getEmittedLight(start, direction);
 
   if (closestIntersection(start, direction, intersection)) {
     Material material = getMaterial(intersection);
@@ -260,9 +254,10 @@ vec3 getPixelValue(vec3 start, vec3 direction, int depth) {
     if (glm::equal(material.specRef, vec3(1.0f,1.0f,1.0f))[0]) {
       vec3 reflectDir = reflect(direction, intersection.normal);
 
-      return getPixelValue(intersection.position, reflectDir, depth + 1);
+      return 0.9f * getPixelValue(intersection.position, reflectDir, depth + 1);
     }
 
+    // If the surface refracts light
     if (material.refractiveIndex > 0.0f) {
       vec3 refractDir = refract(direction, intersection.normal, material);
       vec3 reflectDir = reflect(direction, intersection.normal);
@@ -569,6 +564,22 @@ bool tracePhoton(vec3 power, vec3 start, vec3 direction, int depth, bounce bounc
   }
 
   return false;
+}
+
+// Get the emitted light values
+vec3 getEmittedLight(vec3 start, vec3 dir) {
+  vec3 emmittedLight(0.0,0.0,0.0);
+  Intersection lightIntersection;
+
+  for (size_t i = 0; i < lights.size(); i++) {
+    LightSource l = lights[i];
+
+    if (intersectSquare(lightIntersection, start, dir, l.position, l.direction, l.width, l.length)) {
+      emmittedLight += l.watts * l.color;
+    }
+  }
+
+  return emmittedLight;
 }
 
 // Get the direct light component for a given intersection and lightsource

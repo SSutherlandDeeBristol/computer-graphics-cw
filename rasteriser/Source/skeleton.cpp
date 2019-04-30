@@ -112,9 +112,9 @@ int main(int argc, char* argv[]) {
 
   // LoadTestTriangleZ(triangles);
   // LoadTestModel(triangles);
-  // LoadTestTriangle(triangles);
-  LoadBunny(triangles);
-  LoadTestModel(triangles);
+  LoadTestTriangle(triangles);
+  // LoadBunny(triangles);
+  // LoadTestModel(triangles);
 
   ResetView();
 
@@ -498,8 +498,12 @@ void DrawClipOffset(screen* screen, bool fillOutline) {
     DrawLineSDL(screen, TL, TR, colour); DrawLineSDL(screen, TR, BR, colour);
     DrawLineSDL(screen, BR, BL, colour); DrawLineSDL(screen, BL, TL, colour);
   } else {
-    PutPixelSDL(screen, TL.x, TL.y, colour); PutPixelSDL(screen, TR.x, TR.y, colour);
-    PutPixelSDL(screen, BL.x, BL.y, colour); PutPixelSDL(screen, BR.x, BR.y, colour);
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 5; j++) {
+        PutPixelSDL(screen, TL.x + j * i, TL.y + j * (1 - i), colour); PutPixelSDL(screen, TR.x - j * i, TR.y + j * (1 - i), colour);
+        PutPixelSDL(screen, BL.x + j * i, BL.y - j * (1 - i), colour); PutPixelSDL(screen, BR.x - j * i, BR.y - j * (1 - i), colour);
+      }
+    }
   }
 }
 

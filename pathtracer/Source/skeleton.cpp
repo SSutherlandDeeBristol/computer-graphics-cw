@@ -63,8 +63,8 @@ vec3 DirectLight( const Intersection& i );
 void moveCameraRight(int direction);
 void moveCameraUp(int direction);
 void moveCameraForward(int direction);
-void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb);
-void uniformSampleHemisphere(const float &r1, const float &r2, vec3 &sample);
+void createCoordSystem(vec3 N, vec3 &nX, vec3 &nY);
+void uniformSampleHemisphere(float r1, float r2, vec3 &sample);
 void getSampleTransform(vec3 normal, vec3 nX, vec3 nY, mat3 &transform);
 void lookAt(vec3 toPos);
 void reflect(vec3 dir, vec3 normal, vec3& reflectionDir);
@@ -137,7 +137,7 @@ vec3 CastRay(vec4 start, vec4 dir, const vector<Triangle>& triangles, int depth)
     vec3 indirectLight = black;
 
     /* Create a coordinate system at this point, with the y-axis aligning with the normal */
-    createCoordinateSystem(normal, nX, nY);
+    createCoordSystem(normal, nX, nY);
 
     for (int i = 0; i < PATH_TRACER_SAMPLES; i++) {
       if (intersectedTriangle.mirror) {
@@ -168,7 +168,7 @@ vec3 CastRay(vec4 start, vec4 dir, const vector<Triangle>& triangles, int depth)
     reflectedLight = (directLight / (float) M_PI + 2.0f * indirectLight) * colour;
   } else reflectedLight = distantEnvironmentLight;
 
-  return reflectedLight / (float) ((depth + 1) * (depth + 1));
+  return reflectedLight / (float) (pow((depth + 1), 2));
 }
 
 void reflect(vec3 dir, vec3 normal, vec3& reflectionDir) {
@@ -181,16 +181,13 @@ void getSampleTransform(vec3 normal, vec3 nX, vec3 nY, mat3 &transform) {
   transform[2][0] = nY.z; transform[2][1] = normal.z; transform[2][2] = nX.z;
 }
 
-/* http://www.scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing/global-illumination-path-tracing-practical-implementation */
-void uniformSampleHemisphere(const float &r1, const float &r2, vec3 &sample) {
-  float sinTheta = sqrtf(1 - (r1 * r1));
+void uniformSampleHemisphere(float r1, float r2, vec3 &sample) {
   float phi = 2 * M_PI * r2;
-  float x = sinTheta * cosf(phi), z = sinTheta * sinf(phi);
-  sample = vec3(x, r1, z);
+  float sineTheta = sqrtf(1 - pow(r1, 2));
+  sample = vec3(sineTheta * cosf(phi), r1, sineTheta * sinf(phi));
 }
 
-/* http://www.scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing/global-illumination-path-tracing-practical-implementation */
-void createCoordinateSystem(const vec3 &N, vec3 &nX, vec3 &nY) {
+void createCoordSystem(vec3 N, vec3 &nX, vec3 &nY) {
   bool nXB = fabs(N.x) > fabs(N.y);
   nX = vec3(nXB ? N.z : 0, nXB ? 0 : -N.z, nXB ? -N.x : N.y) / sqrtf((nXB ? N.x * N.x : N.y * N.y) + N.z * N.z);
   nY = cross(N, nX);

@@ -152,7 +152,6 @@ void LoadBunny(std::vector<Triangle>& tris) {
 		} else {
 			/* This is a face definition */
 			Triangle triangle = Triangle(vs[a-1], vs[b-1], vs[c-1], white);
-			// triangle.ReverseNormal();
 			triangles.push_back(triangle);
 		}
 	}
@@ -161,9 +160,9 @@ void LoadBunny(std::vector<Triangle>& tris) {
 	GetRotationMatrix(0, M_PI, 0, rotation);
 	rotate(triangles, rotation);
 
-	float L = 0.3f;
+	float L = 0.5f;
 	scale(triangles, L);
-	translate(triangles, 2, vec3(-0.4, 0.05, 0.5));
+	translate(triangles, 2, vec3(-0.3, -0.22, 0.35));
 
 	for( size_t i=0; i<triangles.size(); ++i ) {
 		tris.push_back(triangles[i]);

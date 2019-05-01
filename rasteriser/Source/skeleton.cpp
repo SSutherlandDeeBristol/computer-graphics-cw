@@ -22,9 +22,11 @@ using glm::mat4;
 #define CLIP_OFFSET 50
 #define NEAR_CLIP_THRESHOLD 2
 #define FAR_CLIP_THRESHOLD 10
-#define TRIANGULATE true
-#define FAN false
-#define FILL true
+
+bool TRIANGULATE = true; /* Whether or not to triangulate clipped scene */
+bool FAN = false; /* true for fan triangulation, false for optimal triangulation */
+bool FILL = true; /* true for solid scene, false for wireframe scene */
+bool FULL_SCENE = true; /* true for cornell box, false for single demo triangle */
 
 SDL_Event event;
 vector<Triangle> triangles;
@@ -59,7 +61,6 @@ struct Pixel {
 struct Vertex {
   vec4 position;
 };
-
 
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
@@ -107,14 +108,26 @@ void ResetView();
 
 int main(int argc, char* argv[]) {
 
+  if (argc < 4) {
+    cerr << "Usage: " << argv[0] << " TRIANGULATE(0/1) FILL(0/1) FULL_SCENE(0/1)" << endl;
+    return 1;
+  } else {
+    try {
+      istringstream(argv[1]) >> TRIANGULATE;
+      istringstream(argv[2]) >> FILL;
+      istringstream(argv[3]) >> FULL_SCENE;
+    } catch (exception const &e) {
+      cerr << "Could not parse arguments." << endl;
+    }
+  }
+
   screen *depthScreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
   screen *mainScreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
 
-  // LoadTestTriangleZ(triangles);
-  // LoadTestModel(triangles);
-  LoadTestTriangle(triangles);
-  // LoadBunny(triangles);
-  // LoadTestModel(triangles);
+  if (FULL_SCENE) {
+    LoadTestModel(triangles);
+    LoadBunny(triangles);
+  } else LoadTestTriangle(triangles);
 
   ResetView();
 

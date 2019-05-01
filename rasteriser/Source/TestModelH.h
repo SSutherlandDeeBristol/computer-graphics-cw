@@ -20,9 +20,10 @@ public:
 	glm::vec4 v2;
 	glm::vec4 normal;
 	glm::vec3 color;
+	bool invert;
 
-	Triangle( glm::vec4 v0, glm::vec4 v1, glm::vec4 v2, glm::vec3 color )
-		: v0(v0), v1(v1), v2(v2), color(color) {
+	Triangle( glm::vec4 v0, glm::vec4 v1, glm::vec4 v2, glm::vec3 color, const bool invert = false )
+		: v0(v0), v1(v1), v2(v2), color(color), invert(invert) {
 		ComputeNormal();
 	}
 
@@ -34,6 +35,7 @@ public:
 	  normal.y = normal3.y;
 	  normal.z = normal3.z;
 	  normal.w = 1.0;
+		if (invert) normal *= vec4(-1.0f, -1.0f, -1.0f, 1.0);
 	}
 };
 
@@ -72,8 +74,6 @@ void scale(std::vector<Triangle>& triangles, float L) {
 		triangles[i].v0.w = 1.0;
 		triangles[i].v1.w = 1.0;
 		triangles[i].v2.w = 1.0;
-
-		triangles[i].ComputeNormal();
 	}
 }
 
@@ -151,7 +151,7 @@ void LoadBunny(std::vector<Triangle>& tris) {
 			vs.push_back(vertex);
 		} else {
 			/* This is a face definition */
-			Triangle triangle = Triangle(vs[a-1], vs[b-1], vs[c-1], white);
+			Triangle triangle = Triangle(vs[a-1], vs[b-1], vs[c-1], white, true);
 			triangles.push_back(triangle);
 		}
 	}

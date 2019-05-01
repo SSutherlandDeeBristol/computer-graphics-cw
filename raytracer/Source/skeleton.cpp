@@ -34,7 +34,7 @@ SDL_Event event;
 // Number of rays to fire at each light source when
 // calculating direct illumination
 // Must be square number
-#define NUM_SHADOW_RAYS 64
+#define NUM_SHADOW_RAYS 16
 
 // Angle of the spotlight cutoff for the lightsources
 #define SPOTLIGHT_CUTOFF M_PI/2
@@ -164,7 +164,7 @@ int main(int argc, char* argv[]) {
     cout << "Number of nearest photons in radiance estimate: " << NUM_NEAREST_PHOTONS << endl;
     photonscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
     LoadTestModel(triangles, spheres, lights);
-    LoadBunny(triangles);
+    //LoadBunny(triangles);
     emitPhotons();
   } else {
     LoadTestModelPhong(phongTriangles, phongSpheres, phongLights);
@@ -356,17 +356,17 @@ float fresnel(vec3 dir, vec3 normal, Material material) {
 
   float n = (float) n1 / n2;
 
-  float sint = n * sqrtf(max(0.0f, 1 - c1 * c1));
+  float sint = n * sqrtf(max(0.0f, 1.0f - c1 * c1));
 
   if (sint >= 1) {
     // total internal reflection
     return 1.0f;
   } else {
-    float cost = sqrtf(max(0.0f, 1 - sint * sint));
+    float cost = sqrtf(max(0.0f, 1.0f - sint * sint));
     c1 = fabsf(c1);
-    float Rs = ((n1 * c1) - (n1 * cost)) / ((n2 * c1) + (n1 * cost));
+    float Rs = ((n2 * c1) - (n1 * cost)) / ((n2 * c1) + (n1 * cost));
     float Rp = ((n1 * c1) - (n2 * cost)) / ((n1 * c1) + (n2 * cost));
-    return (float) (Rs * Rs + Rp * Rp) / 2;
+    return (float) (Rs * Rs + Rp * Rp) / 2.0f;
   }
 }
 

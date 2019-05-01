@@ -22,9 +22,16 @@ using glm::mat4;
 #define CLIP_OFFSET 50
 #define NEAR_CLIP_THRESHOLD 2
 #define FAR_CLIP_THRESHOLD 10
-#define TRIANGULATE true
-#define FAN false
-#define FILL true
+
+#define CAMERA_MOVE_STEP 0.25f
+#define LIGHT_MOVE_STEP 0.25f
+#define ROTATE_STEP M_PI / 18
+#define LOOK_AT_POS vec3(0.0f, 0.0f, 0.0f)
+
+bool TRIANGULATE = true; /* Whether or not to triangulate clipped scene */
+bool FAN = false; /* true for fan triangulation, false for optimal triangulation */
+bool FILL = true; /* true for solid scene, false for wireframe scene */
+bool FULL_SCENE = true; /* true for cornell box, false for single demo triangle */
 
 SDL_Event event;
 vector<Triangle> triangles;
@@ -60,7 +67,6 @@ struct Vertex {
   vec4 position;
 };
 
-
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
 
@@ -79,8 +85,8 @@ void CalculateIntersection(Vertex a, Vertex b, Vertex& c, Axis axis, float maxVa
 void HomogenousFlatten(Vertex homogenousVertex, Vertex& flatVertex);
 void HomogenousDivide(Vertex homogenousVertex, Vertex& projectedVertex);
 void ProjectToHomogenous(Vertex vertex, mat4 proj, Vertex& projectedVertex);
-void TriangulateVerticesFan(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour);
-float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour);
+void TriangulateVerticesFan(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour, bool invert);
+float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour, bool invert);
 float TriangleCost(Triangle triangle);
 
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T);
@@ -102,19 +108,35 @@ void MoveCameraUp(int direction, float distance);
 void MoveCameraForward(int direction, float distance);
 void LookAt(vec3 toPos);
 void ResetView();
+
 /* FUNCTIONS END                                                               */
 /* ----------------------------------------------------------------------------*/
 
 int main(int argc, char* argv[]) {
 
+  /* Parse CLI parameters */
+  if (argc < 4) {
+    cerr << "Usage: " << argv[0] << " TRIANGULATE(0/1) FILL(0/1) FULL_SCENE(0/1)" << endl;
+    return 1;
+  } else {
+    try {
+      istringstream(argv[1]) >> TRIANGULATE;
+      istringstream(argv[2]) >> FILL;
+      istringstream(argv[3]) >> FULL_SCENE;
+    } catch (exception const &e) {
+      cerr << "Could not parse arguments." << endl;
+    }
+  }
+
+  /* Initialise screens */
   screen *depthScreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
   screen *mainScreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
 
-  // LoadTestTriangleZ(triangles);
-  // LoadTestModel(triangles);
-  LoadTestTriangle(triangles);
-  // LoadBunny(triangles);
-  // LoadTestModel(triangles);
+  /* Load triangles */
+  if (FULL_SCENE) {
+    LoadTestModel(triangles);
+    LoadBunny(triangles);
+  } else LoadTestTriangle(triangles);
 
   ResetView();
 
@@ -185,7 +207,7 @@ void Draw(screen* screen) {
     vec4 tv0 = transformMat * triangles[i].v0;
     vec4 tv1 = transformMat * triangles[i].v1;
     vec4 tv2 = transformMat * triangles[i].v2;
-    Triangle transformedTriangle = Triangle(tv0, tv1, tv2, triangles[i].color);
+    Triangle transformedTriangle = Triangle(tv0, tv1, tv2, triangles[i].color, triangles[i].invert);
 
     /* Clip triangle */
     vector<Vertex> clippedVertices;
@@ -194,8 +216,8 @@ void Draw(screen* screen) {
     if (TRIANGULATE) {
       /* Triangulate and draw sub-triangles */
       vector<Triangle> triangulatedVertices;
-      if (FAN) TriangulateVerticesFan(clippedVertices, triangulatedVertices, triangles[i].color);
-      else TriangulateVertices(clippedVertices, triangulatedVertices, triangles[i].color);
+      if (FAN) TriangulateVerticesFan(clippedVertices, triangulatedVertices, triangles[i].color, triangles[i].invert);
+      else TriangulateVertices(clippedVertices, triangulatedVertices, triangles[i].color, triangles[i].invert);
 
       for (size_t j = 0; j < triangulatedVertices.size(); j++)
         DrawTriangle(screen, triangulatedVertices[j], defaultReflectance, FILL);
@@ -310,17 +332,17 @@ bool IsWithinScreenBounds(Pixel p) {
 }
 
 /* Triangulates using the fan approach */
-void TriangulateVerticesFan(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour) {
+void TriangulateVerticesFan(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour, bool invert) {
   for (size_t v = 1; v < vertices.size() - 1; v++) {
     vec4 tv0 = vertices[0].position;
     vec4 tv1 = vertices[v].position;
     vec4 tv2 = vertices[v+1].position;
-    result.push_back(Triangle(tv0, tv1, tv2, colour));
+    result.push_back(Triangle(tv0, tv1, tv2, colour, invert));
   }
 }
 
 /* Triangulates by minimising the sum of the sub-triangle perimeters (recursive function) */
-float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour) {
+float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec3 colour, bool invert) {
   int vertexCount = vertices.size(), lastIndex = vertexCount - 1;
   float cost = numeric_limits<float>::max();
 
@@ -331,7 +353,7 @@ float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec
     vec4 tv1 = vertices[v].position;
     vec4 tv2 = vertices[lastIndex].position;
 
-    Triangle currentTriangle = Triangle(tv0, tv1, tv2, colour);
+    Triangle currentTriangle = Triangle(tv0, tv1, tv2, colour, invert);
 
     vector<Vertex> previousVertices, nextVertices;
     vector<Triangle> previousResults, nextResults;
@@ -339,8 +361,8 @@ float TriangulateVertices(vector<Vertex> vertices, vector<Triangle>& result, vec
     for (int i = 0; i <= v; i++) previousVertices.push_back(vertices[i]);
     for (int i = v; i <= lastIndex; i++) nextVertices.push_back(vertices[i]);
 
-    float costPrevious = TriangulateVertices(previousVertices, previousResults, colour);
-    float costNext = TriangulateVertices(nextVertices, nextResults, colour);
+    float costPrevious = TriangulateVertices(previousVertices, previousResults, colour, invert);
+    float costNext = TriangulateVertices(nextVertices, nextResults, colour, invert);
     float costCur = TriangleCost(currentTriangle);
     float netCost = costPrevious + costNext + costCur;
 
@@ -547,11 +569,9 @@ void UpdateRotationMatrix(float thetaX, float thetaY, float thetaZ, mat3 &R) {
 }
 
 void TransformationMatrix(vec4 camPos, mat3 rot, mat4 &T) {
-  mat4 m1 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), camPos);
   mat4 m2 = mat4(rot);
   mat4 m3 = mat4(vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0), -camPos);
-  m1[3][3] = 1; m2[3][3] = 1; m3[3][3] = 1;
-  // T = m1 * m2 * m3;
+  m2[3][3] = 1; m3[3][3] = 1;
   T = m2 * m3;
 }
 
@@ -598,30 +618,30 @@ bool Update() {
 
   SDL_Event e;
   while(SDL_PollEvent(&e)) {
-  if (e.type == SDL_QUIT) {
-    return false;
-  } else if (e.type == SDL_KEYDOWN) {
-    int key_code = e.key.keysym.sym;
-    switch(key_code) {
-      case SDLK_UP:     pitch += M_PI / 18; break;
-      case SDLK_DOWN:   pitch -= M_PI / 18; break;
-      case SDLK_LEFT:   yaw -= M_PI / 18; break;
-      case SDLK_RIGHT:  yaw += M_PI / 18; break;
-      case SDLK_r:      LookAt(vec3(0, 0, 0)); break;
-      case SDLK_t:      ResetView(); break;
-      case SDLK_w:      MoveCameraUp(-1, 0.25); break;
-      case SDLK_s:      MoveCameraUp(1, 0.25); break;
-      case SDLK_a:      MoveCameraRight(-1, 0.25); break;
-      case SDLK_d:      MoveCameraRight(1, 0.25); break;
-      case SDLK_EQUALS: MoveCameraForward(1, 0.25); break;
-      case SDLK_MINUS:  MoveCameraForward(-1, 0.25); break;
-      case SDLK_i:      lightPos.z += 0.2; break;
-      case SDLK_k:      lightPos.z -= 0.2; break;
-      case SDLK_j:      lightPos.x -= 0.2; break;
-      case SDLK_l:      lightPos.x += 0.2; break;
-      case SDLK_o:      lightPos.y -= 0.2; break;
-      case SDLK_p:      lightPos.y += 0.2; break;
-      case SDLK_ESCAPE: return false;
+    if (e.type == SDL_QUIT) {
+      return false;
+    } else if (e.type == SDL_KEYDOWN) {
+      int key_code = e.key.keysym.sym;
+      switch(key_code) {
+        case SDLK_UP:     pitch += ROTATE_STEP; break;
+        case SDLK_DOWN:   pitch -= ROTATE_STEP; break;
+        case SDLK_LEFT:   yaw -= ROTATE_STEP; break;
+        case SDLK_RIGHT:  yaw += ROTATE_STEP; break;
+        case SDLK_r:      LookAt(LOOK_AT_POS); break;
+        case SDLK_t:      ResetView(); break;
+        case SDLK_w:      MoveCameraUp(-1, CAMERA_MOVE_STEP); break;
+        case SDLK_s:      MoveCameraUp(1, CAMERA_MOVE_STEP); break;
+        case SDLK_a:      MoveCameraRight(-1, CAMERA_MOVE_STEP); break;
+        case SDLK_d:      MoveCameraRight(1, CAMERA_MOVE_STEP); break;
+        case SDLK_EQUALS: MoveCameraForward(1, CAMERA_MOVE_STEP); break;
+        case SDLK_MINUS:  MoveCameraForward(-1, CAMERA_MOVE_STEP); break;
+        case SDLK_i:      lightPos.z += LIGHT_MOVE_STEP; break;
+        case SDLK_k:      lightPos.z -= LIGHT_MOVE_STEP; break;
+        case SDLK_j:      lightPos.x -= LIGHT_MOVE_STEP; break;
+        case SDLK_l:      lightPos.x += LIGHT_MOVE_STEP; break;
+        case SDLK_o:      lightPos.y -= LIGHT_MOVE_STEP; break;
+        case SDLK_p:      lightPos.y += LIGHT_MOVE_STEP; break;
+        case SDLK_ESCAPE: return false;
       }
     }
   }

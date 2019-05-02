@@ -27,14 +27,14 @@ void SDL_SaveImage(screen *s, const char* filename)
 
   if(SDL_BYTEORDER == SDL_BIG_ENDIAN)
     {
-      amask = 0xff << 0;
+      amask = 0x00 << 0;
       rmask = 0xff << 8;
       gmask = 0xff << 16;
       bmask = 0xff << 24;
     }
   else
     {
-      amask = 0xff << 24;
+      amask = 0x00 << 24;
       rmask = 0xff << 16;
       gmask = 0xff << 8;
       bmask = 0xff << 0;

@@ -16,7 +16,6 @@ typedef struct{
 } screen;
 
 screen* InitializeSDL( int width, int height, bool fullscreen = false );
-bool NoQuitMessageSDL();
 void PutPixelSDL( screen *s, int x, int y, glm::vec3 color );
 void SDL_Renderframe(screen *s);
 void KillSDL(screen* s);
@@ -28,14 +27,14 @@ void SDL_SaveImage(screen *s, const char* filename)
 
   if(SDL_BYTEORDER == SDL_BIG_ENDIAN)
     {
-      amask = 0xff << 0;
+      amask = 0x00 << 0;
       rmask = 0xff << 8;
       gmask = 0xff << 16;
       bmask = 0xff << 24;
     }
   else
     {
-      amask = 0xff << 24;
+      amask = 0x00 << 24;
       rmask = 0xff << 16;
       gmask = 0xff << 8;
       bmask = 0xff << 0;
@@ -146,25 +145,6 @@ screen* InitializeSDL(int width,int height, bool fullscreen)
   return s;
 }
 
-bool NoQuitMessageSDL()
-{
-  SDL_Event e;
-  while( SDL_PollEvent(&e) )
-    {
-      if( e.type == SDL_QUIT )
-	{
-	  return false;
-	}
-      if( e.type == SDL_KEYDOWN )
-	{
-	  if( e.key.keysym.sym == SDLK_ESCAPE)
-	    {
-	      return false;
-	    }
-	}
-    }
-  return true;
-}
 
 void PutPixelSDL(screen* s, int x, int y, glm::vec3 colour)
 {

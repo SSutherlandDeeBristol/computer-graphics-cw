@@ -111,11 +111,18 @@ void Draw(screen* screen) {
   vector<vec2> rays;
   GetRaysToCast(camera.FOV, direction, rays);
 
-  vector
+  vector<Intersection> intersections;
 
   for (size_t i = 0; i < rays.size(); i++) {
+    Intersection intersection;
+    intersections.push_back(intersection);
 
+    if (closestIntersection(position, rays[i], intersections[i])) {
+
+    }
   }
+
+  Draw3DView(screen, intersections);
 
 }
 
@@ -156,13 +163,13 @@ void Draw3DView(screen* screen, vector<Intersection> intersections) {
   for (int i = 0; i < length; i++) {
     Intersection intersection = intersections[i];
 
-    int height = floor(1 / intersection.distance);
-    vec3 colour = scene.geometry[intersection.index].colour / (intersection.distance);
+    int height = i * 40; //floor(1 / intersection.distance);
+    vec3 colour = vec3(i * 10, 0,0);//scene.geometry[intersection.index].colour / (intersection.distance);
 
     int vGap = (SCREEN_HEIGHT - height) / 2;
 
     ivec2 topLeft(i * width, vGap);
-    ivec2 botRight((i + 1) * width - 1, SCREEN_HEIGHT - vGap);
+    ivec2 botRight((i + 1) * width, SCREEN_HEIGHT - vGap);
 
     DrawRect(screen, topLeft, botRight, colour);
   }
@@ -246,7 +253,7 @@ bool closestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection
   closestIntersection = Intersection();
   closestIntersection.distance = std::numeric_limits<float>::max();
 
-  for (int i = 0; i < scene.geometry.size(); i++) {
+  for (size_t i = 0; i < scene.geometry.size(); i++) {
     Line line = scene.geometry[i];
 
     vec2 s = line.end - line.start;

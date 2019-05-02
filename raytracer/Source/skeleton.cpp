@@ -213,7 +213,8 @@ void Draw(screen* screen) {
       float percentage = floor(100.0 * pixelNum / screenSize);
 
       if (percentage > lastpercentage) {
-        cout << percentage << "% complete  \r" << flush;
+        cout << "\33[2k";
+        cout << percentage << "% complete\r" << flush;
       }
 
       lastpercentage = percentage;

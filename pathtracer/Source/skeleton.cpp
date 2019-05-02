@@ -102,6 +102,9 @@ void Draw(screen* screen) {
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
+  float lastpercentage = 0.0f;
+  float screenSize = (float) (SCREEN_WIDTH * SCREEN_HEIGHT);
+
   for (int x = 0; x < SCREEN_WIDTH; x++) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
       /* Calculate direction of ray */
@@ -111,6 +114,17 @@ void Draw(screen* screen) {
       vec3 colour = CastRay(cameraPos, d, triangles, 0);
 
       PutPixelSDL(screen, x, y, colour);
+
+      // print out the progress of the render
+      float pixelNum = x * SCREEN_HEIGHT + y;
+      float percentage = floor(100.0 * pixelNum / screenSize);
+
+      if (percentage > lastpercentage) {
+        cout << "\33[2k";
+        cout << percentage << "% complete\r" << flush;
+      }
+
+      lastpercentage = percentage;
     }
   }
 }

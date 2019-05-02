@@ -293,8 +293,8 @@ void LoadTestModel( std::vector<Triangle>& tris, std::vector<Sphere>& spheres, s
   // ---------------------------------------------------------------------------
   // Spheres
 
-	spheres.push_back( Sphere(vec3(0.4,0.6,-0.2), 0.4, white, glass) );
-  spheres.push_back( Sphere(vec3(-0.4, 0.6, 0.2), 0.4, white, mirror));
+	// spheres.push_back( Sphere(vec3(0.4,0.6,-0.2), 0.4, white, glass) );
+  // spheres.push_back( Sphere(vec3(-0.4, 0.6, 0.2), 0.4, white, mirror));
 
   // ---------------------------------------------------------------------------
   // Walls

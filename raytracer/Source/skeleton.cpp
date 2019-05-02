@@ -18,8 +18,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 600
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 300
+#define SCREEN_HEIGHT 300
 #define FULLSCREEN_MODE false
 
 // Maximum number of times a photon can bounce
@@ -29,7 +29,7 @@ SDL_Event event;
 #define MAX_CAMERA_RAY_DEPTH 50
 
 // Filter constant when estimating radiance from the photon maps
-#define FILTER_CONSTANT 1.05
+#define FILTER_CONSTANT 1.1
 
 // Number of rays to fire at each light source when
 // calculating direct illumination
@@ -212,7 +212,9 @@ void Draw(screen* screen) {
       float pixelNum = x * SCREEN_HEIGHT + y;
       float percentage = floor(100.0 * pixelNum / screenSize);
 
-      if (percentage > lastpercentage) cout << percentage << "%" << endl;
+      if (percentage > lastpercentage) {
+        cout << percentage << "% complete  \r" << flush;
+      }
 
       lastpercentage = percentage;
     }

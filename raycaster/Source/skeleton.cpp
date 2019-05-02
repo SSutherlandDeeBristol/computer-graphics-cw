@@ -24,6 +24,9 @@ SDL_Event event;
 #define SCREEN_HEIGHT 600
 #define FULLSCREEN_MODE false
 
+vec3 SKY_COLOUR = vec3(0.78f, 0.88f, 0.91f);
+vec3 FLOOR_COLOUR = vec3(0.10f, 0.10f, 0.10f);
+
 struct Intersection {
   ivec2 position;
   ivec2 direction;
@@ -48,7 +51,6 @@ struct Camera {
 };
 
 Scene scene;
-
 Camera camera;
 
 /* ----------------------------------------------------------------------------*/
@@ -62,19 +64,26 @@ void Draw3DView(screen* screen, vector<Intersection> intersections);
 void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour);
 void DrawLine(screen* screen, Line line);
 
-void getTestIntersections(vector<Intersection> &intersections);
-
 void InterpolatePixels(ivec2 a, ivec2 b, vector<ivec2>& result);
 void Interpolate(float a, float b, vector<float>& result);
 
 bool closestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection);
-
 float crossProd2D(vec2 v, vec2 w);
 
 void GetRaysToCast(float FOV, vec2 dir, vector<vec2>& rays);
 void LoadTestScene(Scene& scene);
 void FillBlack(screen* screen);
+void DrawFloorAndSky(screen* screen);
+
+bool IsWithinScreenBounds(ivec2 p);
+bool IsWithinScreenBounds(int x, int y);
+
 void GetRotationMatrix(float theta, mat2& rotation);
+void rotateCamera(Camera& camera, int direction, float delta);
+void moveCameraForward(Camera& camera, int distance);
+void moveCameraBackward(Camera& camera, int distance);
+void moveCameraLeft(Camera& camera, int distance);
+void moveCameraRight(Camera& camera, int distance);
 
 int main(int argc, char* argv[]) {
   screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
@@ -101,10 +110,12 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-/* Place your drawing here */
 void Draw(screen* screen) {
+
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+
+  DrawFloorAndSky(screen);
 
   vec2 position = camera.position;
   vec2 direction = camera.direction;
@@ -115,11 +126,8 @@ void Draw(screen* screen) {
 
   for (size_t i = 0; i < rays.size(); i++) {
     Intersection intersection;
+    closestIntersection(position, rays[i], intersection);
     intersections.push_back(intersection);
-
-    if (closestIntersection(position, rays[i], intersections[i])) {
-
-    }
   }
 
   Draw3DView(screen, intersections);
@@ -128,13 +136,16 @@ void Draw(screen* screen) {
 
 void DrawScene(screen* screen, Scene scene) {
 
+  /* Clear buffer */
+  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+
   FillBlack(screen);
 
   for (size_t i = 0; i < scene.geometry.size(); i++) {
     DrawLine(screen, scene.geometry[i]);
   }
 
-  /* Cast Ray Example */
+  /* Draw player */
 
   vec2 position = camera.position;
   vec2 direction = camera.direction;
@@ -144,44 +155,59 @@ void DrawScene(screen* screen, Scene scene) {
   for (size_t i = 0; i < rays.size(); i++) {
     Line line;
     line.start = position;
-    line.end = position + (50.0f * rays[i]);
+    line.end = position + (20.0f * rays[i]);
     line.colour = vec3(1.0, 0.0, 0.0);
     DrawLine(screen, line);
   }
 
-  /* Cast ray example end */
-
 }
 
-
 void Draw3DView(screen* screen, vector<Intersection> intersections) {
-  if (intersections.size() < 1) return;
+  if (intersections.size() != SCREEN_WIDTH) return;
 
-  int length = intersections.size();
-  int width = floor(SCREEN_WIDTH / length);
-
-  for (int i = 0; i < length; i++) {
+  for (int i = 0; i < SCREEN_WIDTH; i++) {
     Intersection intersection = intersections[i];
 
-    int height = i * 40; //floor(1 / intersection.distance);
-    vec3 colour = vec3(i * 10, 0,0);//scene.geometry[intersection.index].colour / (intersection.distance);
+    /* Clip to far plane */
+    if (intersection.distance < SCREEN_HEIGHT * 10) {
 
-    int vGap = (SCREEN_HEIGHT - height) / 2;
+      int height = min(SCREEN_HEIGHT, (int) floor(SCREEN_HEIGHT * 50 / intersection.distance));
+      vec3 colour = scene.geometry[intersection.index].colour;
 
-    ivec2 topLeft(i * width, vGap);
-    ivec2 botRight((i + 1) * width, SCREEN_HEIGHT - vGap);
+      int vGap = max(0, (SCREEN_HEIGHT - height) / 2);
 
-    DrawRect(screen, topLeft, botRight, colour);
+      Line line;
+      line.start = ivec2(i, vGap);
+      line.end = ivec2(i, vGap + height);
+      line.colour = colour;
+
+      DrawLine(screen, line);
+    }
   }
 }
 
-void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour) {
-  int xDiff = end.x - start.x;
-  int yDiff = end.y - start.y;
+/* Determines whether a pixel is within the screen bounds */
+bool IsWithinScreenBounds(ivec2 p) {
+  return IsWithinScreenBounds(p.x, p.y);
+}
 
-  for (int x = start.x; x <= xDiff; x++) {
-    for (int y = start.y; y <= yDiff; y++) {
-      PutPixelSDL(screen, x, y, colour);
+/* Determines whether a pixel is within the screen bounds */
+bool IsWithinScreenBounds(int x, int y) {
+  return x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT;
+}
+
+void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour) {
+
+  if (start.x > SCREEN_WIDTH) start.x = SCREEN_WIDTH;
+  if (start.x < 0) start.x = 0;
+  if (start.y > SCREEN_HEIGHT) start.y = SCREEN_HEIGHT;
+  if (start.y < 0) start.y = 0;
+
+  for (int x = start.x; x <= end.x; x++) {
+    for (int y = start.y; y <= end.y; y++) {
+      if (IsWithinScreenBounds(x, y)) {
+        PutPixelSDL(screen, x, y, colour);
+      }
     }
   }
 }
@@ -197,7 +223,9 @@ void DrawLine(screen* screen, Line line) {
   InterpolatePixels(line.start, line.end, pixels);
 
   for (int i = 0; i < pixels.size(); i++) {
-    PutPixelSDL(screen, pixels[i].x, pixels[i].y, line.colour);
+    if (IsWithinScreenBounds(pixels[i])) {
+      PutPixelSDL(screen, pixels[i].x, pixels[i].y, line.colour);
+    }
   }
 }
 
@@ -206,6 +234,14 @@ void FillBlack(screen* screen) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
       vec3 black = vec3(0.0f, 0.0f, 0.0f);
       PutPixelSDL(screen, x, y, black);
+    }
+  }
+}
+
+void DrawFloorAndSky(screen* screen) {
+  for (int x = 0; x < SCREEN_WIDTH; x++) {
+    for (int y = 0; y < SCREEN_HEIGHT; y++) {
+      PutPixelSDL(screen, x, y, y < SCREEN_HEIGHT / 2 ? SKY_COLOUR : FLOOR_COLOUR);
     }
   }
 }
@@ -221,10 +257,14 @@ void GetRaysToCast(float FOV, vec2 dir, vector<vec2>& rays) {
   float step = FOV / (float) SCREEN_WIDTH;
   mat2 rotationMatrix;
 
+  float theta = step * SCREEN_WIDTH / 2;
+  GetRotationMatrix(theta, rotationMatrix);
+  vec2 startDir = dir * rotationMatrix;
+
   for (int i = 0; i < SCREEN_WIDTH; i++) {
-    float theta = step * i;
+    float theta = -step * i;
     GetRotationMatrix(theta, rotationMatrix);
-    vec2 ray = dir * rotationMatrix;
+    vec2 ray = startDir * rotationMatrix;
     rays.push_back(ray);
   }
 }
@@ -297,12 +337,24 @@ float crossProd2D(vec2 v, vec2 w) {
 }
 
 void rotateCamera(Camera& camera, int direction, float delta) {
-  mat2 rotation;
-
-  GetRotationMatrix((float) direction * delta, rotation);
-
+  mat2 rotation; GetRotationMatrix((float) direction * delta, rotation);
   camera.direction = camera.direction * rotation;
+}
 
+void moveCameraForward(Camera& camera, int distance) {
+  camera.position += (float) distance * camera.direction;
+}
+
+void moveCameraBackward(Camera& camera, int distance) {
+  camera.position -= (float) distance * camera.direction;
+}
+
+void moveCameraLeft(Camera& camera, int distance) {
+  camera.position += (float) distance * vec2(camera.direction.y, -camera.direction.x);
+}
+
+void moveCameraRight(Camera& camera, int distance) {
+  camera.position -= (float) distance * vec2(camera.direction.y, -camera.direction.x);
 }
 
 /*Place updates of parameters here*/
@@ -313,21 +365,22 @@ bool Update() {
   float dt = float(t2-t);
   t = t2;
 
-  //std::cout << "Render time: " << dt << " ms." << std::endl;
+  std::cout << "Render time: " << dt << " ms." << std::endl;
 
   SDL_Event e;
-  while(SDL_PollEvent(&e)) {
+  while (SDL_PollEvent(&e)) {
     if (e.type == SDL_QUIT) {
 	    return false;
 	  } else if (e.type == SDL_KEYDOWN) {
 	    int key_code = e.key.keysym.sym;
 	    switch(key_code) {
-        case SDLK_w:      camera.position.y -= SCREEN_HEIGHT / 100; break;
-        case SDLK_s:      camera.position.y += SCREEN_HEIGHT / 100; break;
-        case SDLK_a:      camera.position.x -= SCREEN_HEIGHT / 100; break;
-        case SDLK_d:      camera.position.x += SCREEN_HEIGHT / 100; break;
+        case SDLK_w:      moveCameraForward(camera, SCREEN_HEIGHT / 100); break;
+        case SDLK_s:      moveCameraBackward(camera, SCREEN_HEIGHT / 100); break;
+        case SDLK_a:      moveCameraLeft(camera, SCREEN_HEIGHT / 100); break;
+        case SDLK_d:      moveCameraRight(camera, SCREEN_HEIGHT / 100); break;
         case SDLK_LEFT:   rotateCamera(camera, 1, (float) M_PI / 32); break;
         case SDLK_RIGHT:  rotateCamera(camera, -1, (float) M_PI / 32); break;
+        case SDLK_ESCAPE: return false;
       }
     }
   }

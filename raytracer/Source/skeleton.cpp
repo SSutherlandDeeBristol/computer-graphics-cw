@@ -18,8 +18,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 300
-#define SCREEN_HEIGHT 300
+#define SCREEN_WIDTH 500
+#define SCREEN_HEIGHT 500
 #define FULLSCREEN_MODE false
 
 // Maximum number of times a photon can bounce

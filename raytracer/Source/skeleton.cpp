@@ -18,8 +18,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 300
-#define SCREEN_HEIGHT 300
+#define SCREEN_WIDTH 600
+#define SCREEN_HEIGHT 600
 #define FULLSCREEN_MODE false
 
 // Maximum number of times a photon can bounce
@@ -450,7 +450,7 @@ void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector
 }
 
 vec3 getNearestPhotonsPower(Intersection& intersection, vector<Photon>& map) {
-  if (map.size() < NUM_NEAREST_PHOTONS) return vec3(0.0,0.0,0.0);
+  if ((int) map.size() < NUM_NEAREST_PHOTONS) return vec3(0.0,0.0,0.0);
 
   vector<int> nearestPhotonsIndex;
   vec3 accumPower = vec3(0.0f,0.0f,0.0f);

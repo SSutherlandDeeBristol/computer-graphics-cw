@@ -439,6 +439,8 @@ void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector
 }
 
 vec3 getNearestPhotonsPower(Intersection& intersection, vector<Photon>& map) {
+  if (map.size() < NUM_NEAREST_PHOTONS) return vec3(0.0,0.0,0.0);
+
   vector<int> nearestPhotonsIndex;
   vec3 accumPower = vec3(0.0f,0.0f,0.0f);
   float radius = 0.0f;

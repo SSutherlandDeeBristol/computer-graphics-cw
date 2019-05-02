@@ -18,8 +18,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 500
-#define SCREEN_HEIGHT 500
+#define SCREEN_WIDTH 600
+#define SCREEN_HEIGHT 600
 #define FULLSCREEN_MODE false
 
 // Maximum number of times a photon can bounce
@@ -34,7 +34,7 @@ SDL_Event event;
 // Number of rays to fire at each light source when
 // calculating direct illumination
 // Must be square number
-#define NUM_SHADOW_RAYS 64
+#define NUM_SHADOW_RAYS 128
 
 // Angle of the spotlight cutoff for the lightsources
 #define SPOTLIGHT_CUTOFF M_PI/2
@@ -194,6 +194,9 @@ void Draw(screen* screen) {
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
+  float lastpercentage = 0.0f;
+  float screenSize = (float) (SCREEN_WIDTH * SCREEN_HEIGHT);
+
   for (int x = 0; x < SCREEN_WIDTH; x++) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
 
@@ -204,6 +207,14 @@ void Draw(screen* screen) {
       } else {
         PutPixelSDL(screen, x, y, getPhongPixelValue(d));
       }
+
+      // print out the progress of the render
+      float pixelNum = x * SCREEN_HEIGHT + y;
+      float percentage = floor(100.0 * pixelNum / screenSize);
+
+      if (percentage > lastpercentage) cout << percentage << "%" << endl;
+
+      lastpercentage = percentage;
     }
   }
 }

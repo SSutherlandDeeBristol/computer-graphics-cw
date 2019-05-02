@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
   }
 
   screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-  screen *photonscreen;
+  screen *photonscreen = NULL;
 
   if (PHOTON_MAPPER) {
     cout << "Number of photons: " << NUM_PHOTONS << endl;
@@ -224,7 +224,7 @@ vec3 getPhongPixelValue(vec3 direction) {
       colour = phongSpheres[intersection.index].material.color;
     }
 
-    for (int i = 0; i < phongLights.size(); i++) {
+    for (size_t i = 0; i < phongLights.size(); i++) {
       light += phongComputeLight(intersection, phongLights[i]);
     }
 
@@ -405,13 +405,13 @@ void getNNearestPhotons(Intersection& intersection, vector<int>& indices, vector
   indices.clear();
 
   // Iterate over all photons in the map
-  for (int i = 0; i < map.size(); i++) {
+  for (size_t i = 0; i < map.size(); i++) {
     vec3 ipos = intersection.position;
       vec3 ppos = map[i].position;
 
       float dist = distance(ipos, ppos);
 
-      if (indices.size() < NUM_NEAREST_PHOTONS) {
+      if ((int) indices.size() < NUM_NEAREST_PHOTONS) {
         // There are fewer than needed photons in the list so add
         indices.push_back(i);
         distances.push_back(dist);
@@ -612,7 +612,7 @@ vec3 getDirectLight(const Intersection& i, const LightSource& l) {
   sampleSquareLightSource(l, lightPoints);
   int hitsLight = lightPoints.size();
 
-  for (int h = 0; h < lightPoints.size(); h++) {
+  for (size_t h = 0; h < lightPoints.size(); h++) {
     vec3 lightDir = lightPoints[h] - i.position;
 
     vec3 rHat = normalize(lightDir);
@@ -883,7 +883,7 @@ void drawPhotons(screen* screen) {
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
   // Display the global photons
-  for (int i = 0; i < photonMap.size(); i++) {
+  for (size_t i = 0; i < photonMap.size(); i++) {
     Photon p = photonMap[i];
 
     vec4 pos = R * vec4(p.position,1) - cameraPos;
@@ -894,7 +894,7 @@ void drawPhotons(screen* screen) {
   }
 
   // Display the caustic photons
-  for (int i = 0; i < causticMap.size(); i++) {
+  for (size_t i = 0; i < causticMap.size(); i++) {
     Photon p = causticMap[i];
 
     vec4 pos = R * vec4(p.position,1) - cameraPos;

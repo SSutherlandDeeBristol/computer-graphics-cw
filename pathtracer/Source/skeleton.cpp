@@ -90,9 +90,8 @@ int main(int argc, char* argv[]) {
   while (Update()) {
     Draw(screen);
     SDL_Renderframe(screen);
+    SDL_SaveImage(screen, "mainout.bmp");
   }
-
-  SDL_SaveImage(screen, "screenshot.bmp");
 
   KillSDL(screen);
 

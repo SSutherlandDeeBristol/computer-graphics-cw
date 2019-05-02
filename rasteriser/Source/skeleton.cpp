@@ -144,12 +144,11 @@ int main(int argc, char* argv[]) {
     Draw(mainScreen);
     DrawClipOffset(mainScreen, false);
     SDL_Renderframe(mainScreen);
+    SDL_SaveImage(mainScreen, "mainout.bmp");
 
     DrawDepthBuffer(depthScreen);
     SDL_Renderframe(depthScreen);
   }
-
-  SDL_SaveImage(mainScreen, "screenshot.bmp");
 
   KillSDL(mainScreen);
   KillSDL(depthScreen);

@@ -175,19 +175,16 @@ int main(int argc, char* argv[]) {
   while (Update()) {
     Draw(mainscreen);
     SDL_Renderframe(mainscreen);
+    SDL_SaveImage(mainscreen, "mainout.bmp");
     if (PHOTON_MAPPER) {
       drawPhotons(photonscreen);
       SDL_Renderframe(photonscreen);
+      SDL_SaveImage(photonscreen, "photonmapout.bmp");
     }
   }
 
-  SDL_SaveImage(mainscreen, "mainout.bmp");
   KillSDL(mainscreen);
-
-  if (PHOTON_MAPPER) {
-    SDL_SaveImage(photonscreen, "photonmapout.bmp");
-    KillSDL(photonscreen);
-  }
+  if (PHOTON_MAPPER) KillSDL(photonscreen);
 
 	return 0;
 }

@@ -29,12 +29,12 @@ SDL_Event event;
 #define MAX_CAMERA_RAY_DEPTH 50
 
 // Filter constant when estimating radiance from the photon maps
-#define FILTER_CONSTANT 1.005
+#define FILTER_CONSTANT 1.05
 
 // Number of rays to fire at each light source when
 // calculating direct illumination
 // Must be square number
-#define NUM_SHADOW_RAYS 16
+#define NUM_SHADOW_RAYS 64
 
 // Angle of the spotlight cutoff for the lightsources
 #define SPOTLIGHT_CUTOFF M_PI/2
@@ -68,7 +68,7 @@ int NUM_NEAREST_PHOTONS = 200;
 // Camera values
 const float focalLength = SCREEN_HEIGHT;
 const vec4 defaultCameraPos(0.0, 0.0, -3.0, 1.0);
-vec4 cameraPos(0.0, 0.0, -4.0, 1.0);
+vec4 cameraPos(0.0, 0.0, -3.0, 1.0);
 
 // Indirect lighting for Phong
 vec3 indirectLight = 0.5f * vec3( 1, 1, 1 );
@@ -390,7 +390,7 @@ void sampleSquareLightSource(const LightSource& l, vector<vec3>& points) {
     for (int j = 0; j < gridWidth; j++) {
       float x = (l.position.x - l.width/2 + (l.width/gridWidth)/2) + (i * (l.width/gridWidth))
                 + (((float) rand() / (RAND_MAX)) * l.width/(gridWidth * 4) - l.width/(gridWidth * 8));
-      float y = l.position.y + 0.01f;
+      float y = l.position.y + shadowBiasThreshold;
       float z = (l.position.z - l.length/2 + (l.length/gridWidth)/2) + (j * (l.length/gridWidth))
                 + (((float) rand() / (RAND_MAX)) * l.length/(gridWidth * 4) - l.length/(gridWidth * 8));
 

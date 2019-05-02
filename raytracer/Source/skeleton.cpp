@@ -821,23 +821,36 @@ bool intersectSphere(Intersection& closestIntersection, vec3 start, vec3 dir, ve
 bool intersectSquare(Intersection& intersection, vec3 start, vec3 dir, vec3 position, vec3 normal, float width, float length) {
   bool intersectionFound = false;
 
-  vec3 corner(position.x - width/2, position.y, position.z - length/2);
-  float t = dot((normalize(corner) - normalize(start)), normalize(normal))
-            / dot(normalize(dir), normalize(normal));
+  vec3 p1(position.x - width/2, position.y, position.z - length/2);
+  vec3 p2(position.x - width/2, position.y, position.z + length/2);
+  vec3 p3(position.x + width/2, position.y, position.z + length/2);
+  vec3 p4(position.x + width/2, position.y, position.z - length/2);
+
+  float t = -(-start.y + position.y) / (-dir.y);
+  vec3 pos = start + t * dir;
+
+  vec3 v1 = normalize(p2 - p1);
+  vec3 v2 = normalize(p3 - p2);
+  vec3 v3 = normalize(p4 - p3);
+  vec3 v4 = normalize(p1 - p4);
+
+  vec3 v5 = normalize(pos - p1);
+  vec3 v6 = normalize(pos - p2);
+  vec3 v7 = normalize(pos - p3);
+  vec3 v8 = normalize(pos - p4);
+
+  if (dot(v1, v5) < 0.0f) return false;
+  if (dot(v2, v6) < 0.0f) return false;
+  if (dot(v3, v7) < 0.0f) return false;
+  if (dot(v4, v8) < 0.0f) return false;
+
+  float dist = distance(start, pos);
 
   if (t >= 0) {
-    vec3 pos = start + t * dir;
-
-    float dist = distance(start, pos);
-
-    vec3 v = pos - corner;
-
-    if (v.x >= 0 && v.x <= width && v.z >= 0 && v.z <= length) {
-      intersectionFound = true;
-      intersection.distance = dist;
-      intersection.position = pos;
-      intersection.direction = dir;
-    }
+    intersectionFound = true;
+    intersection.distance = dist;
+    intersection.position = pos;
+    intersection.direction = dir;
   }
 
   return intersectionFound;

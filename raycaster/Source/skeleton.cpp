@@ -87,7 +87,7 @@ void moveCameraRight(Camera& camera, int distance);
 
 int main(int argc, char* argv[]) {
   screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-  screen *scenescreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+  // screen *scenescreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
 
   camera.position = ivec2(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
   camera.direction = vec2(1.0,1.0);
@@ -100,12 +100,12 @@ int main(int argc, char* argv[]) {
     SDL_Renderframe(mainscreen);
     SDL_SaveImage(mainscreen, "mainout.bmp");
 
-    DrawScene(scenescreen, scene);
-    SDL_Renderframe(scenescreen);
+    // DrawScene(scenescreen, scene);
+    // SDL_Renderframe(scenescreen);
   }
 
   KillSDL(mainscreen);
-  KillSDL(scenescreen);
+  // KillSDL(scenescreen);
 
 	return 0;
 }
@@ -172,7 +172,7 @@ void Draw3DView(screen* screen, vector<Intersection> intersections) {
     if (intersection.distance < SCREEN_HEIGHT * 10) {
 
       int height = min(SCREEN_HEIGHT, (int) floor(SCREEN_HEIGHT * 50 / intersection.distance));
-      vec3 colour = scene.geometry[intersection.index].colour;
+      vec3 colour = 10.0f * scene.geometry[intersection.index].colour / sqrt(intersection.distance);
 
       int vGap = max(0, (SCREEN_HEIGHT - height) / 2);
 
@@ -222,7 +222,7 @@ void DrawLine(screen* screen, Line line) {
 
   InterpolatePixels(line.start, line.end, pixels);
 
-  for (int i = 0; i < pixels.size(); i++) {
+  for (size_t i = 0; i < pixels.size(); i++) {
     if (IsWithinScreenBounds(pixels[i])) {
       PutPixelSDL(screen, pixels[i].x, pixels[i].y, line.colour);
     }
@@ -397,14 +397,14 @@ void LoadTestScene(Scene& scene) {
 
   vector<FLine> lines;
 
-  vec3 black  = vec3(0.00f, 0.00f, 0.00f);
+  // vec3 black  = vec3(0.00f, 0.00f, 0.00f);
   vec3 red    = vec3(0.75f, 0.15f, 0.15f);
-    vec3 yellow = vec3(0.75f, 0.75f, 0.15f);
-    vec3 green  = vec3(0.15f, 0.75f, 0.15f);
-    vec3 cyan   = vec3(0.15f, 0.75f, 0.75f);
-    vec3 blue   = vec3(0.15f, 0.15f, 0.75f);
-    vec3 purple = vec3(0.75f, 0.15f, 0.75f);
-    vec3 white  = vec3(0.75f, 0.75f, 0.75f);
+  vec3 yellow = vec3(0.75f, 0.75f, 0.15f);
+  vec3 green  = vec3(0.15f, 0.75f, 0.15f);
+  vec3 cyan   = vec3(0.15f, 0.75f, 0.75f);
+  // vec3 blue   = vec3(0.15f, 0.15f, 0.75f);
+  // vec3 purple = vec3(0.75f, 0.15f, 0.75f);
+  vec3 white  = vec3(0.75f, 0.75f, 0.75f);
 
   /* ---------- WALLS ---------- */
 

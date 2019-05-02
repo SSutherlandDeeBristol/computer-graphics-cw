@@ -67,7 +67,6 @@ void LoadTestScene(Scene& scene);
 void FillBlack(screen* screen);
 void DrawFloorAndSky(screen* screen);
 
-void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour);
 void DrawLine(screen* screen, Line line);
 
 bool ClosestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection);
@@ -99,11 +98,11 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-  screen *scenescreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+  screen *mainscreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
+  screen *scenescreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
 
-  camera.position = ivec2(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
-  camera.direction = vec2(1.0,1.0);
+  camera.position = ivec2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+  camera.direction = vec2(1.0, 1.0);
   camera.FOV = M_PI / 4;
 
   LoadTestScene(scene);
@@ -128,8 +127,10 @@ void Draw(screen* screen) {
   /* Clear buffer */
   memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
 
+  /* Draw the background */
   DrawFloorAndSky(screen);
 
+  /* Gets and draw the ray intersections */
   vector<vec2> rays;
   GetRaysToCast(camera.FOV, camera.direction, rays);
   Draw3DView(screen, rays);
@@ -142,11 +143,12 @@ void DrawScene(screen* screen, Scene scene) {
 
   FillBlack(screen);
 
+  /* Draw the scene lines */
   for (size_t i = 0; i < scene.geometry.size(); i++) {
     DrawLine(screen, scene.geometry[i]);
   }
 
-  /* Draw player */
+  /* Draw the player cone */
   vec2 position = camera.position;
   vector<vec2> rays;
   GetRaysToCast(camera.FOV, camera.direction, rays);
@@ -203,22 +205,6 @@ bool IsWithinScreenBounds(int x, int y) {
   return x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT;
 }
 
-void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour) {
-
-  if (start.x > SCREEN_WIDTH) start.x = SCREEN_WIDTH;
-  if (start.x < 0) start.x = 0;
-  if (start.y > SCREEN_HEIGHT) start.y = SCREEN_HEIGHT;
-  if (start.y < 0) start.y = 0;
-
-  for (int x = start.x; x <= end.x; x++) {
-    for (int y = start.y; y <= end.y; y++) {
-      if (IsWithinScreenBounds(x, y)) {
-        PutPixelSDL(screen, x, y, colour);
-      }
-    }
-  }
-}
-
 void DrawLine(screen* screen, Line line) {
   int deltaX = abs(line.end.x - line.start.x);
   int deltaY = abs(line.end.y - line.start.y);
@@ -230,17 +216,14 @@ void DrawLine(screen* screen, Line line) {
   InterpolatePixels(line.start, line.end, pixels);
 
   for (size_t i = 0; i < pixels.size(); i++) {
-    if (IsWithinScreenBounds(pixels[i])) {
-      PutPixelSDL(screen, pixels[i].x, pixels[i].y, line.colour);
-    }
+    if (IsWithinScreenBounds(pixels[i])) PutPixelSDL(screen, pixels[i].x, pixels[i].y, line.colour);
   }
 }
 
 void FillBlack(screen* screen) {
   for (int x = 0; x < SCREEN_WIDTH; x++) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
-      vec3 black = vec3(0.0f, 0.0f, 0.0f);
-      PutPixelSDL(screen, x, y, black);
+      PutPixelSDL(screen, x, y, vec3(0.0f, 0.0f, 0.0f));
     }
   }
 }
@@ -268,6 +251,7 @@ void GetRaysToCast(float FOV, vec2 dir, vector<vec2>& rays) {
   GetRotationMatrix(theta, rotationMatrix);
   vec2 startDir = dir * rotationMatrix;
 
+  /* Populate rays vector */
   for (int i = 0; i < SCREEN_WIDTH; i++) {
     float theta = -step * i;
     GetRotationMatrix(theta, rotationMatrix);
@@ -304,19 +288,15 @@ bool ClosestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection
     Line line = scene.geometry[i];
 
     vec2 s = line.end - line.start;
-
     vec2 q = line.start;
+    vec2 p = start, r = dir;
 
-    vec2 p = start;
-    vec2 r = dir;
-
-    float csr = CrossProduct(r,s);
-
+    float csr = CrossProduct(r, s);
     float t = CrossProduct((q - p), s) / csr;
     float u = CrossProduct(q - p, r) / csr;
 
     if (csr != 0 && t >= 0 && u >= 0 && u <= 1) {
-      //the two line segments meet at the point p + t r = q + u s
+      /* The two line segments meet at the point p + t r = q + u s */
       intersectionFound = true;
 
       vec2 intersectionPoint = p + t * r;
@@ -328,12 +308,6 @@ bool ClosestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection
         closestIntersection.index = i;
       }
     }
-
-    if (csr == 0 && CrossProduct(q - p, r) != 0) {
-      // parallel and non-intersecting
-      break;
-    }
-
   }
 
   return intersectionFound;
@@ -396,6 +370,7 @@ bool Update() {
 
 void LoadTestScene(Scene& scene) {
 
+  /* Float line struct */
   struct FLine {
     vec2 start;
     vec2 end;
@@ -404,9 +379,7 @@ void LoadTestScene(Scene& scene) {
 
   vector<FLine> lines;
 
-  // vec3 black  = vec3(0.00f, 0.00f, 0.00f);
-  // vec3 blue   = vec3(0.15f, 0.15f, 0.75f);
-  // vec3 purple = vec3(0.75f, 0.15f, 0.75f);
+  /* Define colours */
   vec3 red    = vec3(0.75f, 0.15f, 0.15f);
   vec3 yellow = vec3(0.75f, 0.75f, 0.15f);
   vec3 green  = vec3(0.15f, 0.75f, 0.15f);

@@ -20,9 +20,10 @@ using glm::vec2;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 600
-#define SCREEN_HEIGHT 600
 #define FULLSCREEN_MODE false
+
+int SCREEN_WIDTH = 600;
+int SCREEN_HEIGHT = 600;
 
 vec3 SKY_COLOUR = vec3(0.78f, 0.88f, 0.91f);
 vec3 FLOOR_COLOUR = vec3(0.10f, 0.10f, 0.10f);
@@ -59,35 +60,47 @@ Camera camera;
 bool Update();
 void Draw(screen* screen);
 void DrawScene(screen* screen, Scene scene);
-void Draw3DView(screen* screen, vector<Intersection> intersections);
-
-void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour);
-void DrawLine(screen* screen, Line line);
-
-void InterpolatePixels(ivec2 a, ivec2 b, vector<ivec2>& result);
-void Interpolate(float a, float b, vector<float>& result);
-
-bool closestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection);
-float crossProd2D(vec2 v, vec2 w);
+void Draw3DView(screen* screen, vector<vec2> rays);
 
 void GetRaysToCast(float FOV, vec2 dir, vector<vec2>& rays);
 void LoadTestScene(Scene& scene);
 void FillBlack(screen* screen);
 void DrawFloorAndSky(screen* screen);
 
+void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour);
+void DrawLine(screen* screen, Line line);
+
+bool ClosestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection);
+float CrossProduct(vec2 v, vec2 w);
+void InterpolatePixels(ivec2 a, ivec2 b, vector<ivec2>& result);
+void Interpolate(float a, float b, vector<float>& result);
 bool IsWithinScreenBounds(ivec2 p);
 bool IsWithinScreenBounds(int x, int y);
 
 void GetRotationMatrix(float theta, mat2& rotation);
-void rotateCamera(Camera& camera, int direction, float delta);
-void moveCameraForward(Camera& camera, int distance);
-void moveCameraBackward(Camera& camera, int distance);
-void moveCameraLeft(Camera& camera, int distance);
-void moveCameraRight(Camera& camera, int distance);
+void RotateCamera(Camera& camera, int direction, float delta);
+void MoveCameraForward(Camera& camera, int distance);
+void MoveCameraBackward(Camera& camera, int distance);
+void MoveCameraLeft(Camera& camera, int distance);
+void MoveCameraRight(Camera& camera, int distance);
 
 int main(int argc, char* argv[]) {
+
+  /* Parse arguments */
+  if (argc < 3) {
+    cerr << "Usage: " << argv[0] << " SCREEN_WIDTH SCREEN_HEIGHT" << endl;
+    return 1;
+  } else {
+    try {
+      SCREEN_WIDTH = stoi(argv[1]);
+      SCREEN_HEIGHT = stoi(argv[2]);
+    } catch (exception const &e) {
+      cerr << "Could not parse arguments." << endl;
+    }
+  }
+
   screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-  // screen *scenescreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+  screen *scenescreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
 
   camera.position = ivec2(SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
   camera.direction = vec2(1.0,1.0);
@@ -100,12 +113,12 @@ int main(int argc, char* argv[]) {
     SDL_Renderframe(mainscreen);
     SDL_SaveImage(mainscreen, "mainout.bmp");
 
-    // DrawScene(scenescreen, scene);
-    // SDL_Renderframe(scenescreen);
+    DrawScene(scenescreen, scene);
+    SDL_Renderframe(scenescreen);
   }
 
   KillSDL(mainscreen);
-  // KillSDL(scenescreen);
+  KillSDL(scenescreen);
 
 	return 0;
 }
@@ -117,21 +130,9 @@ void Draw(screen* screen) {
 
   DrawFloorAndSky(screen);
 
-  vec2 position = camera.position;
-  vec2 direction = camera.direction;
   vector<vec2> rays;
-  GetRaysToCast(camera.FOV, direction, rays);
-
-  vector<Intersection> intersections;
-
-  for (size_t i = 0; i < rays.size(); i++) {
-    Intersection intersection;
-    closestIntersection(position, rays[i], intersection);
-    intersections.push_back(intersection);
-  }
-
-  Draw3DView(screen, intersections);
-
+  GetRaysToCast(camera.FOV, camera.direction, rays);
+  Draw3DView(screen, rays);
 }
 
 void DrawScene(screen* screen, Scene scene) {
@@ -146,11 +147,9 @@ void DrawScene(screen* screen, Scene scene) {
   }
 
   /* Draw player */
-
   vec2 position = camera.position;
-  vec2 direction = camera.direction;
   vector<vec2> rays;
-  GetRaysToCast(camera.FOV, direction, rays);
+  GetRaysToCast(camera.FOV, camera.direction, rays);
 
   for (size_t i = 0; i < rays.size(); i++) {
     Line line;
@@ -162,15 +161,23 @@ void DrawScene(screen* screen, Scene scene) {
 
 }
 
-void Draw3DView(screen* screen, vector<Intersection> intersections) {
-  if (intersections.size() != SCREEN_WIDTH) return;
+void Draw3DView(screen* screen, vector<vec2> rays) {
+  if ((int) rays.size() != SCREEN_WIDTH) return;
+
+  vector<Intersection> intersections;
+  for (size_t i = 0; i < rays.size(); i++) {
+    Intersection intersection; ClosestIntersection(camera.position, rays[i], intersection);
+
+    /* Multiply by cosine of angle between ray and direction to counteract fisheye effect */
+    intersection.distance *= (dot(rays[i], camera.direction) / (length(rays[i]) * length(camera.direction)));
+    intersections.push_back(intersection);
+  }
 
   for (int i = 0; i < SCREEN_WIDTH; i++) {
     Intersection intersection = intersections[i];
 
     /* Clip to far plane */
     if (intersection.distance < SCREEN_HEIGHT * 10) {
-
       int height = min(SCREEN_HEIGHT, (int) floor(SCREEN_HEIGHT * 50 / intersection.distance));
       vec3 colour = 10.0f * scene.geometry[intersection.index].colour / sqrt(intersection.distance);
 
@@ -288,7 +295,7 @@ void Interpolate(float a, float b, vector<float>& result) {
   for (int i = 0; i < size; i++) result[i] = a + (incr * i);
 }
 
-bool closestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection) {
+bool ClosestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection) {
   bool intersectionFound = false;
   closestIntersection = Intersection();
   closestIntersection.distance = std::numeric_limits<float>::max();
@@ -303,10 +310,10 @@ bool closestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection
     vec2 p = start;
     vec2 r = dir;
 
-    float csr = crossProd2D(r,s);
+    float csr = CrossProduct(r,s);
 
-    float t = crossProd2D((q - p), s) / csr;
-    float u = crossProd2D(q - p, r) / csr;
+    float t = CrossProduct((q - p), s) / csr;
+    float u = CrossProduct(q - p, r) / csr;
 
     if (csr != 0 && t >= 0 && u >= 0 && u <= 1) {
       //the two line segments meet at the point p + t r = q + u s
@@ -322,7 +329,7 @@ bool closestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection
       }
     }
 
-    if (csr == 0 && crossProd2D(q - p, r) != 0) {
+    if (csr == 0 && CrossProduct(q - p, r) != 0) {
       // parallel and non-intersecting
       break;
     }
@@ -332,28 +339,28 @@ bool closestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection
   return intersectionFound;
 }
 
-float crossProd2D(vec2 v, vec2 w) {
+float CrossProduct(vec2 v, vec2 w) {
   return v.x * w.y - v.y * w.x;
 }
 
-void rotateCamera(Camera& camera, int direction, float delta) {
+void RotateCamera(Camera& camera, int direction, float delta) {
   mat2 rotation; GetRotationMatrix((float) direction * delta, rotation);
   camera.direction = camera.direction * rotation;
 }
 
-void moveCameraForward(Camera& camera, int distance) {
+void MoveCameraForward(Camera& camera, int distance) {
   camera.position += (float) distance * camera.direction;
 }
 
-void moveCameraBackward(Camera& camera, int distance) {
+void MoveCameraBackward(Camera& camera, int distance) {
   camera.position -= (float) distance * camera.direction;
 }
 
-void moveCameraLeft(Camera& camera, int distance) {
+void MoveCameraLeft(Camera& camera, int distance) {
   camera.position += (float) distance * vec2(camera.direction.y, -camera.direction.x);
 }
 
-void moveCameraRight(Camera& camera, int distance) {
+void MoveCameraRight(Camera& camera, int distance) {
   camera.position -= (float) distance * vec2(camera.direction.y, -camera.direction.x);
 }
 
@@ -374,12 +381,12 @@ bool Update() {
 	  } else if (e.type == SDL_KEYDOWN) {
 	    int key_code = e.key.keysym.sym;
 	    switch(key_code) {
-        case SDLK_w:      moveCameraForward(camera, SCREEN_HEIGHT / 100); break;
-        case SDLK_s:      moveCameraBackward(camera, SCREEN_HEIGHT / 100); break;
-        case SDLK_a:      moveCameraLeft(camera, SCREEN_HEIGHT / 100); break;
-        case SDLK_d:      moveCameraRight(camera, SCREEN_HEIGHT / 100); break;
-        case SDLK_LEFT:   rotateCamera(camera, 1, (float) M_PI / 32); break;
-        case SDLK_RIGHT:  rotateCamera(camera, -1, (float) M_PI / 32); break;
+        case SDLK_w:      MoveCameraForward(camera, SCREEN_HEIGHT / 100); break;
+        case SDLK_s:      MoveCameraBackward(camera, SCREEN_HEIGHT / 100); break;
+        case SDLK_a:      MoveCameraLeft(camera, SCREEN_HEIGHT / 100); break;
+        case SDLK_d:      MoveCameraRight(camera, SCREEN_HEIGHT / 100); break;
+        case SDLK_LEFT:   RotateCamera(camera, 1, (float) M_PI / 32); break;
+        case SDLK_RIGHT:  RotateCamera(camera, -1, (float) M_PI / 32); break;
         case SDLK_ESCAPE: return false;
       }
     }
@@ -398,12 +405,12 @@ void LoadTestScene(Scene& scene) {
   vector<FLine> lines;
 
   // vec3 black  = vec3(0.00f, 0.00f, 0.00f);
+  // vec3 blue   = vec3(0.15f, 0.15f, 0.75f);
+  // vec3 purple = vec3(0.75f, 0.15f, 0.75f);
   vec3 red    = vec3(0.75f, 0.15f, 0.15f);
   vec3 yellow = vec3(0.75f, 0.75f, 0.15f);
   vec3 green  = vec3(0.15f, 0.75f, 0.15f);
   vec3 cyan   = vec3(0.15f, 0.75f, 0.75f);
-  // vec3 blue   = vec3(0.15f, 0.15f, 0.75f);
-  // vec3 purple = vec3(0.75f, 0.15f, 0.75f);
   vec3 white  = vec3(0.75f, 0.75f, 0.75f);
 
   /* ---------- WALLS ---------- */

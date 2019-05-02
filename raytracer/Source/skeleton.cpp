@@ -29,7 +29,7 @@ SDL_Event event;
 #define MAX_CAMERA_RAY_DEPTH 50
 
 // Filter constant when estimating radiance from the photon maps
-#define FILTER_CONSTANT 1.1
+#define FILTER_CONSTANT 1.05
 
 // Number of rays to fire at each light source when
 // calculating direct illumination

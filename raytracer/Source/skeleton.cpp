@@ -930,23 +930,6 @@ void drawPhotons(screen* screen) {
     if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, normalize(p.power));
   }
 
-  // Show the light sources
-  /* for (int i = 0; i < lights.size(); i++) {
-    float width = lights[i].width;
-    float length = lights[i].length;
-
-    for (float j = -width/2; j <= width/2; j += width/100) {
-      for (float k = -length/2; k <= length/2; k += length/100) {
-        vec4 pixelPos(lights[i].position.x + j, lights[i].position.y, lights[i].position.z + k, 1);
-        vec4 pos = R * pixelPos - cameraPos;
-
-        int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
-        int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-        if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, lights[i].color);
-      }
-    }
-  }*/
-
 }
 
 

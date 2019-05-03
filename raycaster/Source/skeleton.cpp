@@ -27,6 +27,7 @@ int SCREEN_HEIGHT = 600;
 
 vec3 SKY_COLOUR = vec3(0.78f, 0.88f, 0.91f);
 vec3 FLOOR_COLOUR = vec3(0.10f, 0.10f, 0.10f);
+vec2 DEFAULT_DIRECTION = vec2(1.0f, 1.0f);
 
 struct Intersection {
   vec2 position;
@@ -86,6 +87,8 @@ void MoveCameraForward(Camera& camera, int distance);
 void MoveCameraBackward(Camera& camera, int distance);
 void MoveCameraLeft(Camera& camera, int distance);
 void MoveCameraRight(Camera& camera, int distance);
+void ResetCamera(Camera& camera);
+void LookAt(Camera& camera, ivec2 position);
 
 int main(int argc, char* argv[]) {
 
@@ -104,9 +107,7 @@ int main(int argc, char* argv[]) {
 
   screen *mainscreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
 
-  camera.position = ivec2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-  camera.direction = vec2(1.0, 1.0);
-  camera.FOV = M_PI / 4;
+  ResetCamera(camera);
 
   LoadTestScene(scene);
 
@@ -366,7 +367,7 @@ float CrossProduct(vec2 v, vec2 w) {
 
 void RotateCamera(Camera& camera, int direction, float delta) {
   mat2 rotation; GetRotationMatrix((float) direction * delta, rotation);
-  camera.direction = camera.direction * rotation;
+  camera.direction = normalize(camera.direction * rotation);
 }
 
 void MoveCameraForward(Camera& camera, int distance) {
@@ -385,7 +386,17 @@ void MoveCameraRight(Camera& camera, int distance) {
   camera.position -= (float) distance * vec2(camera.direction.y, -camera.direction.x);
 }
 
-/*Place updates of parameters here*/
+void ResetCamera(Camera& camera) {
+  camera.position = ivec2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+  camera.direction = DEFAULT_DIRECTION;
+  camera.FOV = M_PI / 4;
+}
+
+void LookAt(Camera& camera, ivec2 position) {
+  vec2 newDirection = normalize((vec2) (ivec2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2) - camera.position));
+  camera.direction = length(newDirection) > 0.0f ? newDirection : DEFAULT_DIRECTION;
+}
+
 bool Update() {
   static int t = SDL_GetTicks();
   /* Compute frame time */
@@ -406,8 +417,10 @@ bool Update() {
         case SDLK_s:      MoveCameraBackward(camera, SCREEN_HEIGHT / 100); break;
         case SDLK_a:      MoveCameraLeft(camera, SCREEN_HEIGHT / 100); break;
         case SDLK_d:      MoveCameraRight(camera, SCREEN_HEIGHT / 100); break;
-        case SDLK_LEFT:   RotateCamera(camera, 1, (float) M_PI / 32); break;
-        case SDLK_RIGHT:  RotateCamera(camera, -1, (float) M_PI / 32); break;
+        case SDLK_LEFT:   RotateCamera(camera, 1, (float) M_PI / 64); break;
+        case SDLK_RIGHT:  RotateCamera(camera, -1, (float) M_PI / 64); break;
+        case SDLK_t:      ResetCamera(camera); break;
+        case SDLK_r:      LookAt(camera, ivec2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)); break;
         case SDLK_ESCAPE: return false;
       }
     }

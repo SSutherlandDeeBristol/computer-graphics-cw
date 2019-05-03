@@ -18,8 +18,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 600
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 500
+#define SCREEN_HEIGHT 500
 #define FULLSCREEN_MODE false
 
 // Maximum number of times a photon can bounce
@@ -164,7 +164,7 @@ int main(int argc, char* argv[]) {
     cout << "Number of nearest photons in radiance estimate: " << NUM_NEAREST_PHOTONS << endl;
     photonscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
     LoadTestModel(triangles, spheres, lights);
-    //LoadBunny(triangles);
+    LoadBunny(triangles);
     emitPhotons();
   } else {
     LoadTestModelPhong(phongTriangles, phongSpheres, phongLights);

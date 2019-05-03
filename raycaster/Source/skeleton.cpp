@@ -57,6 +57,10 @@ struct Camera {
 Scene scene;
 Camera camera;
 
+bool moveForward = false, moveBackward = false,
+     moveLeft = false, moveRight = false,
+     rotateLeft = false, rotateRight = false;
+
 /* ----------------------------------------------------------------------------*/
 /* FUNCTIONS                                                                   */
 
@@ -407,6 +411,7 @@ void LookAt(Camera& camera, ivec2 position) {
 
 bool Update() {
   static int t = SDL_GetTicks();
+
   /* Compute frame time */
   int t2 = SDL_GetTicks();
   float dt = float(t2-t);
@@ -421,18 +426,39 @@ bool Update() {
 	  } else if (e.type == SDL_KEYDOWN) {
 	    int key_code = e.key.keysym.sym;
 	    switch(key_code) {
-        case SDLK_w:      MoveCameraForward(camera, SCREEN_HEIGHT / 100); break;
-        case SDLK_s:      MoveCameraBackward(camera, SCREEN_HEIGHT / 100); break;
-        case SDLK_a:      MoveCameraLeft(camera, SCREEN_HEIGHT / 100); break;
-        case SDLK_d:      MoveCameraRight(camera, SCREEN_HEIGHT / 100); break;
-        case SDLK_LEFT:   RotateCamera(camera, 1, (float) M_PI / 64); break;
-        case SDLK_RIGHT:  RotateCamera(camera, -1, (float) M_PI / 64); break;
+        case SDLK_w:      moveForward = true; break;
+        case SDLK_s:      moveBackward = true; break;
+        case SDLK_a:      moveLeft = true; break;
+        case SDLK_d:      moveRight = true; break;
+        case SDLK_LEFT:   rotateLeft = true; break;
+        case SDLK_RIGHT:  rotateRight = true; break;
         case SDLK_t:      ResetCamera(camera); break;
         case SDLK_r:      LookAt(camera, ivec2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)); break;
         case SDLK_ESCAPE: return false;
       }
+    } else if (e.type == SDL_KEYUP) {
+	    int key_code = e.key.keysym.sym;
+	    switch(key_code) {
+        case SDLK_w:      moveForward = false; break;
+        case SDLK_s:      moveBackward = false; break;
+        case SDLK_a:      moveLeft = false; break;
+        case SDLK_d:      moveRight = false; break;
+        case SDLK_LEFT:   rotateLeft = false; break;
+        case SDLK_RIGHT:  rotateRight = false; break;
+      }
     }
   }
+
+  int movementDelta = SCREEN_HEIGHT / 150;
+  float rotateDelta = M_PI / 128;
+
+  if (moveForward) MoveCameraForward(camera, movementDelta);
+  if (moveBackward) MoveCameraBackward(camera, movementDelta);
+  if (moveLeft) MoveCameraLeft(camera, movementDelta);
+  if (moveRight) MoveCameraRight(camera, movementDelta);
+  if (rotateLeft) RotateCamera(camera, 1, rotateDelta);
+  if (rotateRight) RotateCamera(camera, -1, rotateDelta);
+
   return true;
 }
 

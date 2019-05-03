@@ -29,8 +29,8 @@ vec3 SKY_COLOUR = vec3(0.78f, 0.88f, 0.91f);
 vec3 FLOOR_COLOUR = vec3(0.10f, 0.10f, 0.10f);
 
 struct Intersection {
-  ivec2 position;
-  ivec2 direction;
+  vec2 position;
+  vec2 direction;
   float distance;
   int index;
 };
@@ -59,13 +59,14 @@ Camera camera;
 
 bool Update();
 void Draw(screen* screen);
-void Draw3DView(screen* screen, Scene scene, vector<vec2> rays);
-void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays);
+void Draw3DView(screen* screen, Scene scene, vector<vec2> rays, vector<Intersection>& intersections);
+void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays, vector<Intersection> intersections, bool floodCone);
 
 void GetRaysToCast(float FOV, vec2 dir, vector<vec2>& rays);
 void LoadTestScene(Scene& scene);
 void DrawFloorAndSky(screen* screen);
-void TranslateLineToMinimap(ivec2 topLeft, ivec2 bottomRight, Line line, Line& result);
+void TranslatePositionToMinimap(ivec2 topLeft, ivec2 botRight, ivec2 position, ivec2& result);
+void TranslateLineToMinimap(ivec2 topLeft, ivec2 botRight, Line line, Line& result);
 
 void FillBlack(screen* screen);
 void DrawLine(screen* screen, Line line);
@@ -78,6 +79,7 @@ void Interpolate(float a, float b, vector<float>& result);
 bool IsWithinScreenBounds(ivec2 p);
 bool IsWithinScreenBounds(int x, int y);
 
+float GetFarPlane();
 void GetRotationMatrix(float theta, mat2& rotation);
 void RotateCamera(Camera& camera, int direction, float delta);
 void MoveCameraForward(Camera& camera, int distance);
@@ -129,12 +131,13 @@ void Draw(screen* screen) {
 
   /* Gets and draw the ray intersections */
   vector<vec2> rays;
+  vector<Intersection> intersections;
   GetRaysToCast(camera.FOV, camera.direction, rays);
-  Draw3DView(screen, scene, rays);
-  DrawMinimap(screen, scene, rays);
+  Draw3DView(screen, scene, rays, intersections);
+  DrawMinimap(screen, scene, rays, intersections, true);
 }
 
-void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays) {
+void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays, vector<Intersection> intersections, bool floodCone) {
   ivec2 topLeft = ivec2(SCREEN_WIDTH * 0.68f, SCREEN_HEIGHT * 0.68f);
   ivec2 botRight = ivec2(SCREEN_WIDTH * 0.98f, SCREEN_HEIGHT * 0.98f);
 
@@ -149,29 +152,43 @@ void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays) {
   }
 
   /* Draw viewing cone from rays */
-  for (size_t i = 0; i < rays.size(); i++) {
-    Line line, scaledLine;
-    line.start = camera.position;
-    line.end = (vec2) camera.position + (20.0f * rays[i]);
-    line.colour = vec3(1.0, 0.0, 0.0);
+  if (rays.size() == intersections.size()) {
+    for (size_t i = 0; i < rays.size(); i++) {
+      if (intersections[i].distance < GetFarPlane()) {
+        Line line, scaledLine;
+        line.start = camera.position;
+        line.end = floodCone ? intersections[i].position : (vec2) camera.position + (20.0f * rays[i]);
+        line.colour = vec3(1.0, 0.0, 0.0);
 
-    TranslateLineToMinimap(topLeft, botRight, line, scaledLine);
-    DrawLine(screen, scaledLine);
+        TranslateLineToMinimap(topLeft, botRight, line, scaledLine);
+        DrawLine(screen, scaledLine);
+      }
+    }
   }
+
+  /* Draw player position */
+  ivec2 cameraTopLeft, cameraBotRight;
+  TranslatePositionToMinimap(topLeft, botRight, camera.position - ivec2(2, 2), cameraTopLeft);
+  TranslatePositionToMinimap(topLeft, botRight, camera.position + ivec2(2, 2), cameraBotRight);
+
+  DrawRect(screen, cameraTopLeft, cameraBotRight, vec3(1.0f, 1.0f, 1.0f));
 }
 
 void TranslateLineToMinimap(ivec2 topLeft, ivec2 botRight, Line line, Line& result) {
+  TranslatePositionToMinimap(topLeft, botRight, line.start, result.start);
+  TranslatePositionToMinimap(topLeft, botRight, line.end, result.end);
+  result.colour = line.colour;
+}
+
+void TranslatePositionToMinimap(ivec2 topLeft, ivec2 botRight, ivec2 position, ivec2& result) {
   int width = botRight.x - topLeft.x, height = botRight.y - topLeft.y;
 
   float sfx = (float) width / (float) SCREEN_WIDTH;
   float sfy = (float) height / (float) SCREEN_HEIGHT;
 
-  result.start.x = (int) (line.start.x * sfx);
-  result.end.x = (int) (line.end.x * sfx);
-  result.start.y = (int) (line.start.y * sfy);
-  result.end.y = (int) (line.end.y * sfy);
-  result.start += topLeft; result.end += topLeft;
-  result.colour = line.colour;
+  result.x = (int) (position.x * sfx);
+  result.y = (int) (position.y * sfy);
+  result += topLeft;
 }
 
 void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour) {
@@ -189,10 +206,10 @@ void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour) {
   }
 }
 
-void Draw3DView(screen* screen, Scene scene, vector<vec2> rays) {
+void Draw3DView(screen* screen, Scene scene, vector<vec2> rays, vector<Intersection>& intersections) {
   if ((int) rays.size() != SCREEN_WIDTH) return;
+  intersections.clear();
 
-  vector<Intersection> intersections;
   for (size_t i = 0; i < rays.size(); i++) {
     Intersection intersection; ClosestIntersection(scene, camera.position, rays[i], intersection);
 
@@ -205,7 +222,7 @@ void Draw3DView(screen* screen, Scene scene, vector<vec2> rays) {
     Intersection intersection = intersections[i];
 
     /* Clip to far plane */
-    if (intersection.distance < SCREEN_HEIGHT * 10) {
+    if (intersection.distance < GetFarPlane()) {
       int height = min(SCREEN_HEIGHT, (int) floor(SCREEN_HEIGHT * 50 / intersection.distance));
       vec3 colour = 10.0f * scene.geometry[intersection.index].colour / sqrt(intersection.distance);
 
@@ -219,6 +236,10 @@ void Draw3DView(screen* screen, Scene scene, vector<vec2> rays) {
       DrawLine(screen, line);
     }
   }
+}
+
+float GetFarPlane() {
+  return SCREEN_HEIGHT * 10;
 }
 
 /* Determines whether a pixel is within the screen bounds */

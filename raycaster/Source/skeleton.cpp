@@ -59,17 +59,19 @@ Camera camera;
 
 bool Update();
 void Draw(screen* screen);
-void DrawScene(screen* screen, Scene scene);
-void Draw3DView(screen* screen, vector<vec2> rays);
+void Draw3DView(screen* screen, Scene scene, vector<vec2> rays);
+void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays);
 
 void GetRaysToCast(float FOV, vec2 dir, vector<vec2>& rays);
 void LoadTestScene(Scene& scene);
-void FillBlack(screen* screen);
 void DrawFloorAndSky(screen* screen);
+void TranslateLineToMinimap(ivec2 topLeft, ivec2 bottomRight, Line line, Line& result);
 
+void FillBlack(screen* screen);
 void DrawLine(screen* screen, Line line);
+void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour);
 
-bool ClosestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection);
+bool ClosestIntersection(Scene scene, vec2 start, vec2 dir, Intersection& closestIntersection);
 float CrossProduct(vec2 v, vec2 w);
 void InterpolatePixels(ivec2 a, ivec2 b, vector<ivec2>& result);
 void Interpolate(float a, float b, vector<float>& result);
@@ -99,7 +101,6 @@ int main(int argc, char* argv[]) {
   }
 
   screen *mainscreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
-  screen *scenescreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
 
   camera.position = ivec2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
   camera.direction = vec2(1.0, 1.0);
@@ -111,13 +112,9 @@ int main(int argc, char* argv[]) {
     Draw(mainscreen);
     SDL_Renderframe(mainscreen);
     SDL_SaveImage(mainscreen, "mainout.bmp");
-
-    DrawScene(scenescreen, scene);
-    SDL_Renderframe(scenescreen);
   }
 
   KillSDL(mainscreen);
-  KillSDL(scenescreen);
 
 	return 0;
 }
@@ -133,42 +130,71 @@ void Draw(screen* screen) {
   /* Gets and draw the ray intersections */
   vector<vec2> rays;
   GetRaysToCast(camera.FOV, camera.direction, rays);
-  Draw3DView(screen, rays);
+  Draw3DView(screen, scene, rays);
+  DrawMinimap(screen, scene, rays);
 }
 
-void DrawScene(screen* screen, Scene scene) {
+void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays) {
+  ivec2 topLeft = ivec2(SCREEN_WIDTH * 0.68f, SCREEN_HEIGHT * 0.68f);
+  ivec2 botRight = ivec2(SCREEN_WIDTH * 0.98f, SCREEN_HEIGHT * 0.98f);
 
-  /* Clear buffer */
-  memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+  /* Draw minimap background */
+  DrawRect(screen, topLeft, botRight, vec3(0.0f, 0.0f, 0.0f));
 
-  FillBlack(screen);
-
-  /* Draw the scene lines */
+  /* Draw scene geometry */
   for (size_t i = 0; i < scene.geometry.size(); i++) {
-    DrawLine(screen, scene.geometry[i]);
+    Line scaledLine;
+    TranslateLineToMinimap(topLeft, botRight, scene.geometry[i], scaledLine);
+    DrawLine(screen, scaledLine);
   }
 
-  /* Draw the player cone */
-  vec2 position = camera.position;
-  vector<vec2> rays;
-  GetRaysToCast(camera.FOV, camera.direction, rays);
-
+  /* Draw viewing cone from rays */
   for (size_t i = 0; i < rays.size(); i++) {
-    Line line;
-    line.start = position;
-    line.end = position + (20.0f * rays[i]);
+    Line line, scaledLine;
+    line.start = camera.position;
+    line.end = (vec2) camera.position + (20.0f * rays[i]);
     line.colour = vec3(1.0, 0.0, 0.0);
-    DrawLine(screen, line);
-  }
 
+    TranslateLineToMinimap(topLeft, botRight, line, scaledLine);
+    DrawLine(screen, scaledLine);
+  }
 }
 
-void Draw3DView(screen* screen, vector<vec2> rays) {
+void TranslateLineToMinimap(ivec2 topLeft, ivec2 botRight, Line line, Line& result) {
+  int width = botRight.x - topLeft.x, height = botRight.y - topLeft.y;
+
+  float sfx = (float) width / (float) SCREEN_WIDTH;
+  float sfy = (float) height / (float) SCREEN_HEIGHT;
+
+  result.start.x = (int) (line.start.x * sfx);
+  result.end.x = (int) (line.end.x * sfx);
+  result.start.y = (int) (line.start.y * sfy);
+  result.end.y = (int) (line.end.y * sfy);
+  result.start += topLeft; result.end += topLeft;
+  result.colour = line.colour;
+}
+
+void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour) {
+  if (start.x > SCREEN_WIDTH) start.x = SCREEN_WIDTH;
+  if (start.x < 0) start.x = 0;
+  if (start.y > SCREEN_HEIGHT) start.y = SCREEN_HEIGHT;
+  if (start.y < 0) start.y = 0;
+
+  for (int x = start.x; x <= end.x; x++) {
+    for (int y = start.y; y <= end.y; y++) {
+      if (IsWithinScreenBounds(x, y)) {
+        PutPixelSDL(screen, x, y, colour);
+      }
+    }
+  }
+}
+
+void Draw3DView(screen* screen, Scene scene, vector<vec2> rays) {
   if ((int) rays.size() != SCREEN_WIDTH) return;
 
   vector<Intersection> intersections;
   for (size_t i = 0; i < rays.size(); i++) {
-    Intersection intersection; ClosestIntersection(camera.position, rays[i], intersection);
+    Intersection intersection; ClosestIntersection(scene, camera.position, rays[i], intersection);
 
     /* Multiply by cosine of angle between ray and direction to counteract fisheye effect */
     intersection.distance *= (dot(rays[i], camera.direction) / (length(rays[i]) * length(camera.direction)));
@@ -279,7 +305,7 @@ void Interpolate(float a, float b, vector<float>& result) {
   for (int i = 0; i < size; i++) result[i] = a + (incr * i);
 }
 
-bool ClosestIntersection(vec2 start, vec2 dir, Intersection& closestIntersection) {
+bool ClosestIntersection(Scene scene, vec2 start, vec2 dir, Intersection& closestIntersection) {
   bool intersectionFound = false;
   closestIntersection = Intersection();
   closestIntersection.distance = std::numeric_limits<float>::max();
@@ -439,8 +465,8 @@ void LoadTestScene(Scene& scene) {
   /* Scale up scene */
   for (size_t i = 0; i < lines.size(); i++) {
     Line line;
-    line.start = ivec2(lines[i].start.x * (SCREEN_WIDTH - 1), lines[i].start.y * (SCREEN_HEIGHT - 1));
-    line.end = ivec2(lines[i].end.x * (SCREEN_WIDTH - 1), lines[i].end.y * (SCREEN_HEIGHT - 1));
+    line.start = ivec2(lines[i].start.x * SCREEN_WIDTH, lines[i].start.y * SCREEN_HEIGHT);
+    line.end = ivec2(lines[i].end.x * SCREEN_WIDTH, lines[i].end.y * SCREEN_HEIGHT);
     line.colour = lines[i].colour;
     scene.geometry.push_back(line);
   }

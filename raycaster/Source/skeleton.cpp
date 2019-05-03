@@ -8,13 +8,14 @@
 #include <vector>
 
 using namespace std;
+using std::vector;
+using glm::ivec2;
+using glm::vec2;
 using glm::mat2;
 using glm::vec3;
 using glm::mat3;
 using glm::distance;
-using std::vector;
-using glm::ivec2;
-using glm::vec2;
+using glm::clamp;
 
 SDL_Event event;
 
@@ -130,7 +131,7 @@ void Draw(screen* screen) {
   /* Draw the background */
   DrawFloorAndSky(screen);
 
-  /* Gets and draw the ray intersections */
+  /* Gets and draws the ray intersections in 3D and on the minimap */
   vector<vec2> rays;
   vector<Intersection> intersections;
   GetRaysToCast(camera.FOV, camera.direction, rays);
@@ -138,6 +139,7 @@ void Draw(screen* screen) {
   DrawMinimap(screen, scene, rays, intersections, true);
 }
 
+/* Draws the minimap, including the background, scene, viewing cone and camera position */
 void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays, vector<Intersection> intersections, bool floodCone) {
   ivec2 topLeft = ivec2(SCREEN_WIDTH * 0.68f, SCREEN_HEIGHT * 0.68f);
   ivec2 botRight = ivec2(SCREEN_WIDTH * 0.98f, SCREEN_HEIGHT * 0.98f);
@@ -167,20 +169,21 @@ void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays, vector<Intersec
     }
   }
 
-  /* Draw player position */
+  /* Draw camera position */
   ivec2 cameraTopLeft, cameraBotRight;
   TranslatePositionToMinimap(topLeft, botRight, camera.position - ivec2(2, 2), cameraTopLeft);
   TranslatePositionToMinimap(topLeft, botRight, camera.position + ivec2(2, 2), cameraBotRight);
-
   DrawRect(screen, cameraTopLeft, cameraBotRight, CAMERA_COLOUR);
 }
 
+/* Translates a line from screen space to a line in minimap space */
 void TranslateLineToMinimap(ivec2 topLeft, ivec2 botRight, Line line, Line& result) {
   TranslatePositionToMinimap(topLeft, botRight, line.start, result.start);
   TranslatePositionToMinimap(topLeft, botRight, line.end, result.end);
   result.colour = line.colour;
 }
 
+/* Translates a point in screen space to a point in minimap space */
 void TranslatePositionToMinimap(ivec2 topLeft, ivec2 botRight, ivec2 position, ivec2& result) {
   int width = botRight.x - topLeft.x, height = botRight.y - topLeft.y;
 
@@ -192,14 +195,13 @@ void TranslatePositionToMinimap(ivec2 topLeft, ivec2 botRight, ivec2 position, i
   result += topLeft;
 }
 
-void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour) {
-  if (start.x > SCREEN_WIDTH) start.x = SCREEN_WIDTH;
-  if (start.x < 0) start.x = 0;
-  if (start.y > SCREEN_HEIGHT) start.y = SCREEN_HEIGHT;
-  if (start.y < 0) start.y = 0;
+/* Draws a rectangle between topLeft and botRight */
+void DrawRect(screen* screen, ivec2 topLeft, ivec2 botRight, vec3 colour) {
+  topLeft = clamp(topLeft, ivec2(0, 0), ivec2(SCREEN_WIDTH, SCREEN_HEIGHT));
+  botRight = clamp(botRight, ivec2(0, 0), ivec2(SCREEN_WIDTH, SCREEN_HEIGHT));
 
-  for (int x = start.x; x <= end.x; x++) {
-    for (int y = start.y; y <= end.y; y++) {
+  for (int x = topLeft.x; x <= botRight.x; x++) {
+    for (int y = topLeft.y; y <= botRight.y; y++) {
       if (IsWithinScreenBounds(x, y)) {
         PutPixelSDL(screen, x, y, colour);
       }
@@ -207,6 +209,7 @@ void DrawRect(screen* screen, ivec2 start, ivec2 end, vec3 colour) {
   }
 }
 
+/* Draws the 3D interpretation of the scene */
 void Draw3DView(screen* screen, Scene scene, vector<vec2> rays, vector<Intersection>& intersections) {
   if ((int) rays.size() != SCREEN_WIDTH) return;
   intersections.clear();
@@ -253,6 +256,7 @@ bool IsWithinScreenBounds(int x, int y) {
   return x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT;
 }
 
+/* Draws a line on the screen */
 void DrawLine(screen* screen, Line line) {
   int deltaX = abs(line.end.x - line.start.x);
   int deltaY = abs(line.end.y - line.start.y);
@@ -268,6 +272,7 @@ void DrawLine(screen* screen, Line line) {
   }
 }
 
+/* Sets every pixel on the screen to black */
 void FillBlack(screen* screen) {
   for (int x = 0; x < SCREEN_WIDTH; x++) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
@@ -276,6 +281,7 @@ void FillBlack(screen* screen) {
   }
 }
 
+/* Draws the top half of the screen with sky, and the bottom half with floor */
 void DrawFloorAndSky(screen* screen) {
   for (int x = 0; x < SCREEN_WIDTH; x++) {
     for (int y = 0; y < SCREEN_HEIGHT; y++) {
@@ -291,6 +297,7 @@ void GetRotationMatrix(float theta, mat2& rotation) {
   rotation[1][1] = cos(theta);
 }
 
+/* Populats the rays vector with a ray for each vertical screen segment */
 void GetRaysToCast(float FOV, vec2 dir, vector<vec2>& rays) {
   float step = FOV / (float) SCREEN_WIDTH;
   mat2 rotationMatrix;
@@ -327,6 +334,7 @@ void Interpolate(float a, float b, vector<float>& result) {
   for (int i = 0; i < size; i++) result[i] = a + (incr * i);
 }
 
+/* Finds the closest for the provided position and direction vectors */
 bool ClosestIntersection(Scene scene, vec2 start, vec2 dir, Intersection& closestIntersection) {
   bool intersectionFound = false;
   closestIntersection = Intersection();

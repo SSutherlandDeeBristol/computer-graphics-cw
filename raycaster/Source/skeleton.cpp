@@ -253,7 +253,7 @@ bool IsWithinScreenBounds(ivec2 p) {
 
 /* Determines whether a pixel is within the screen bounds */
 bool IsWithinScreenBounds(int x, int y) {
-  return x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT;
+  return x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT;
 }
 
 /* Draws a line on the screen */

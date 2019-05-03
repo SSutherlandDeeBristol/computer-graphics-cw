@@ -5,8 +5,6 @@
 #include <stdint.h>
 #include "limits"
 #include <math.h>
-#include "glm/gtx/string_cast.hpp"
-#include <tuple>
 #include <vector>
 
 using namespace std;
@@ -25,9 +23,12 @@ SDL_Event event;
 int SCREEN_WIDTH = 600;
 int SCREEN_HEIGHT = 600;
 
-vec3 SKY_COLOUR = vec3(0.78f, 0.88f, 0.91f);
-vec3 FLOOR_COLOUR = vec3(0.10f, 0.10f, 0.10f);
-vec2 DEFAULT_DIRECTION = vec2(1.0f, 1.0f);
+const vec3 SKY_COLOUR = vec3(0.78f, 0.88f, 0.91f);
+const vec3 FLOOR_COLOUR = vec3(0.10f, 0.10f, 0.10f);
+const vec3 CONE_COLOUR = vec3(1.00f, 0.60f, 0.10f);
+const vec3 CAMERA_COLOUR = vec3(1.00f, 1.00f, 1.00f);
+
+const vec2 DEFAULT_DIRECTION = vec2(1.0f, 1.0f);
 
 struct Intersection {
   vec2 position;
@@ -108,7 +109,6 @@ int main(int argc, char* argv[]) {
   screen *mainscreen = InitializeSDL(SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE);
 
   ResetCamera(camera);
-
   LoadTestScene(scene);
 
   while (Update()) {
@@ -159,7 +159,7 @@ void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays, vector<Intersec
         Line line, scaledLine;
         line.start = camera.position;
         line.end = floodCone ? intersections[i].position : (vec2) camera.position + (20.0f * rays[i]);
-        line.colour = vec3(1.0, 0.0, 0.0);
+        line.colour = CONE_COLOUR;
 
         TranslateLineToMinimap(topLeft, botRight, line, scaledLine);
         DrawLine(screen, scaledLine);
@@ -172,7 +172,7 @@ void DrawMinimap(screen* screen, Scene scene, vector<vec2> rays, vector<Intersec
   TranslatePositionToMinimap(topLeft, botRight, camera.position - ivec2(2, 2), cameraTopLeft);
   TranslatePositionToMinimap(topLeft, botRight, camera.position + ivec2(2, 2), cameraBotRight);
 
-  DrawRect(screen, cameraTopLeft, cameraBotRight, vec3(1.0f, 1.0f, 1.0f));
+  DrawRect(screen, cameraTopLeft, cameraBotRight, CAMERA_COLOUR);
 }
 
 void TranslateLineToMinimap(ivec2 topLeft, ivec2 botRight, Line line, Line& result) {

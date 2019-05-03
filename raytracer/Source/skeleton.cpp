@@ -18,8 +18,8 @@ using glm::distance;
 
 SDL_Event event;
 
-#define SCREEN_WIDTH 600
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 500
+#define SCREEN_HEIGHT 500
 #define FULLSCREEN_MODE false
 
 // Maximum number of times a photon can bounce
@@ -164,7 +164,7 @@ int main(int argc, char* argv[]) {
     cout << "Number of nearest photons in radiance estimate: " << NUM_NEAREST_PHOTONS << endl;
     photonscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
     LoadTestModel(triangles, spheres, lights);
-    //LoadBunny(triangles);
+    LoadBunny(triangles);
     emitPhotons();
   } else {
     LoadTestModelPhong(phongTriangles, phongSpheres, phongLights);
@@ -929,23 +929,6 @@ void drawPhotons(screen* screen) {
     int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
     if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, normalize(p.power));
   }
-
-  // Show the light sources
-  /* for (int i = 0; i < lights.size(); i++) {
-    float width = lights[i].width;
-    float length = lights[i].length;
-
-    for (float j = -width/2; j <= width/2; j += width/100) {
-      for (float k = -length/2; k <= length/2; k += length/100) {
-        vec4 pixelPos(lights[i].position.x + j, lights[i].position.y, lights[i].position.z + k, 1);
-        vec4 pos = R * pixelPos - cameraPos;
-
-        int x = (focalLength * pos.x) / pos.z + SCREEN_WIDTH/2;
-        int y = (focalLength * pos.y) / pos.z + SCREEN_WIDTH/2;
-        if (x > 0 && x < SCREEN_WIDTH && y > 0 && y < SCREEN_HEIGHT) PutPixelSDL(screen, x, y, lights[i].color);
-      }
-    }
-  }*/
 
 }
 

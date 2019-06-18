@@ -26,9 +26,13 @@
 ## Gallery
 
 ### Photon Mapper
-<img align="left" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon3.png"></img>
+<p align="left">
+    <img  width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon3.png"></img>
+</p>
 
-<img align="right" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap3.png"></img>
+<p align="right">
+    <img width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap3.png"></img>
+</p>
 
 <br/><br/>
 

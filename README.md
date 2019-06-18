@@ -40,3 +40,17 @@ Bunny Render               |  Bunny Photon Map
 Tall Mirror Block Render |
 :-----------------------:|
 ![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/pathtracer/pathtracer1.png)
+
+### Phong Shading
+
+Cornell Box Render |
+:-----------------------:|
+![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/phong%20shading/phong1.png)
+
+### Rasteriser
+
+A demonstration video can be viewed [here](https://www.youtube.com/watch?v=RgAZK1vxCeg).
+
+Clipping to two planes               |  Optimal triangulation
+:-------------------------:|:-------------------------:
+![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/rasteriser/rasteriser1.png)  |  ![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/rasteriser/rasteriser2.png)

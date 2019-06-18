@@ -79,3 +79,20 @@ Before running anything, navigate to the top level of the submission directory
 ```bash
 cd submission
 ```
+
+### Photon Mapper
+
+```bash
+cd raytracer
+make -B && ./Build/skeleton n r
+```
+
+where:
+* **n** integer number of photons to emit
+* **r** integer number of photons in radiance estimate
+
+To start try:
+* **n** = 20000
+* **r** = 200
+
+Increasing these values will give a nicer render but will significantly increase render time.

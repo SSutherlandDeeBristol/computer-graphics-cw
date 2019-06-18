@@ -30,5 +30,6 @@
 
 <img align="right" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap3.png"/>
 
-![Photon2](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon2.png)
-![Photon2Map](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap2.png)
+<img align="left" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon2.png"/>
+
+<img align="right" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap2.png"/>

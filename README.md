@@ -135,3 +135,18 @@ Try:
 * **t** = 1
 * **f** = 1
 * **s** = 1
+
+### Raycaster
+
+```bash
+cd raycaster
+make -B && ./Build/skeleton w h
+```
+
+where:
+* **w** is the integer screen width in px
+* **h** is the integer screen height in px
+
+Try:
+* **w** = 600
+* **h** = 600

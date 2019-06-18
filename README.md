@@ -88,11 +88,50 @@ make -B && ./Build/skeleton n r
 ```
 
 where:
-* **n** integer number of photons to emit
-* **r** integer number of photons in radiance estimate
+* **n** is the integer number of photons to emit
+* **r** is the integer number of photons in radiance estimate
 
 To start try:
 * **n** = 20000
 * **r** = 200
 
 Increasing these values will give a nicer render but will significantly increase render time.
+
+### Path Tracer
+
+```bash
+cd pathtracer
+make -B && ./Build/skeleton b n
+```
+
+where:
+* **b** is the integer number of bounces
+* **n** is the integer number of samples at each bounce
+
+To start try:
+* **b** = 1
+* **n** = 32
+
+### Phong Shading
+
+```bash
+cd raytracer
+make -B && ./Build/skeleton
+```
+
+### Rasteriser
+
+```bash
+cd rasteriser
+make −B && ./Build/skeleton t f s
+```
+
+where:
+* **t** is whether to triangulate (boolean; 0 or 1)
+* **f** is whether to fill - wireframe or solid (boolean; 0 or 1)
+* **s** is demo triangle or full scene (boolean; 0 or 1)
+
+Try:
+* **t** = 1
+* **f** = 1
+* **s** = 1

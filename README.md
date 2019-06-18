@@ -31,14 +31,12 @@ Balls Render               |  Balls Photon Map
 :-------------------------:|:-------------------------:
 ![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon3.png)  |  ![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap3.png)
 
-<p>
-    <img align="left" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon3.png"></img>
-    <img align="right" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap3.png"></img>
-</p>
+Bunny Render               |  Bunny Photon Map
+:-------------------------:|:-------------------------:
+![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon2.png)  |  ![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap2.png)
 
-<br/><br/>
+### Path Tracer
 
-<p>
-    <img align="left" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon2.png"></img>
-    <img align="right" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap2.png"></img>
-</p>
+Tall Mirror Block Render |
+:-----------------------:|
+![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/pathtracer/pathtracer1.png)

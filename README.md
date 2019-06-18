@@ -1,3 +1,33 @@
-# Raytracer and Rasteriser
+#COMS30115 coursework by @Michael-JB and @SSutherlandDeeBristol
 
-COMS30115 coursework by @Michael-JB and @SSutherlandDeeBristol
+## Extensions
+
+### Raytracer
+* Phong Shading
+* Path Tracer
+    * Imperfect reflections
+* Photon Mapper
+    * Area lighting
+    * Spot lighting
+    * Reflections & mirrors
+    * Refraction & glass
+    * Soft shadows
+* Spheres
+* Object loading from .obj files
+* Full camera movement with LookAt
+
+### Rasteriser
+* Full homogenous clipping
+* Fan triangulation algorithm
+* Optimal triangulation algorithm
+* Object loading from .obj files
+* Full camera movement with LookAt
+
+## Gallery
+
+### Photon Mapper
+![Photon3](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon3.png)
+![Photon3Map](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap3.png)
+
+![Photon2](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon2.png)
+![Photon2Map](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap2.png)

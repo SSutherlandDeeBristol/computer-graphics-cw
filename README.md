@@ -67,6 +67,6 @@ Clipping to two planes               |  Optimal triangulation
 ### Raycaster
 
 A demonstration video can be viewed [here](https://www.youtube.com/watch?v=gmD1RMafxK0).
-
+Snapshot 1 | Snapshot 2
 :-------------------------:|:-------------------------:
 ![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raycaster/raycaster1.png)  |  ![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raycaster/raycaster2.png)

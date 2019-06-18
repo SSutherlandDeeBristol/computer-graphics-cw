@@ -30,7 +30,7 @@
 
 <img align="right" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photonmap3.png"></img>
 
----
+<br/><br/>
 
 <img align="left" width="400" height="400" src="https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raytracer/photon%20mapper/photon2.png"></img>
 

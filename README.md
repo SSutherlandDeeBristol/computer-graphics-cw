@@ -23,6 +23,15 @@
 * Object loading from .obj files
 * Full camera movement with LookAt
 
+### Raycaster
+As well as extending the raytracer and rasteriser, we created a raycasting renderer. The ray- casting renderer is inspired by Wolfenstien 3D, building up a 3D scene from the intersection and distance data of rays cast in 2D space. The key features of our raycasting renderer are listed below.
+
+* Minimap
+* Fisheye Correction
+* Distance Shading
+* Floor and Sky
+* Full camera movement with LookAt
+
 ## Gallery
 
 ### Photon Mapper
@@ -54,3 +63,10 @@ A demonstration video can be viewed [here](https://www.youtube.com/watch?v=RgAZK
 Clipping to two planes               |  Optimal triangulation
 :-------------------------:|:-------------------------:
 ![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/rasteriser/rasteriser1.png)  |  ![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/rasteriser/rasteriser2.png)
+
+### Raycaster
+
+A demonstration video can be viewed [here](https://www.youtube.com/watch?v=gmD1RMafxK0).
+
+:-------------------------:|:-------------------------:
+![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raycaster/raycaster1.png)  |  ![](https://github.com/SSutherlandDeeBristol/computer-graphics-cw/blob/master/submission/images/raycaster/raycaster2.png)
